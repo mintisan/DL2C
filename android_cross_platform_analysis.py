@@ -7,10 +7,14 @@ Android跨平台MNIST推理性能分析工具
 
 import json
 import os
+import sys
 from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
+
+# 配置选项
+FORCE_ENGLISH = True  # 设置为False以尝试使用中文（需要系统支持中文字体）
 
 class CrossPlatformAnalyzer:
     def __init__(self):
@@ -353,37 +357,68 @@ class CrossPlatformAnalyzer:
         # 创建综合对比图
         fig = plt.figure(figsize=(18, 12))
         
-        # 设置中文字体
-        plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei']
+        # 设置中文字体 - 优化字体配置
+        plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'STHeiti', 'SimHei', 'DejaVu Sans']
         plt.rcParams['axes.unicode_minus'] = False
+        
+        # 检测字体支持中文
+        import matplotlib.font_manager as fm
+        available_fonts = [f.name for f in fm.fontManager.ttflist]
+        chinese_fonts = ['PingFang SC', 'Arial Unicode MS', 'STHeiti', 'SimHei']
+        has_chinese_font = any(font in available_fonts for font in chinese_fonts)
+        
+        # 根据配置和字体支持情况决定使用的语言
+        if FORCE_ENGLISH:
+            use_chinese = False
+            print("⚠️  配置为强制使用英文标签")
+        elif has_chinese_font:
+            use_chinese = True
+            print("✓ 检测到中文字体支持，使用中文标签")
+        else:
+            use_chinese = False
+            print("⚠️  未检测到中文字体，使用英文标签")
+        
+        # 设置标题文本（根据字体支持选择语言）
+        if use_chinese:
+            titles = ['推理性能对比 (FPS)', '平均推理时间对比', '模型准确率对比', 
+                     '性能效率分布', '综合性能雷达图', '性能排行榜']
+            ylabels = ['FPS (frames per second)', '时间 (ms)', '准确率 (%)', 
+                      'FPS', '', '']
+            xlabels = ['', '', '', '推理时间 (ms)', '', '']
+        else:
+            titles = ['Inference Performance (FPS)', 'Average Inference Time', 'Model Accuracy',
+                     'Performance Efficiency', 'Performance Radar', 'Performance Ranking']
+            ylabels = ['FPS (frames per second)', 'Time (ms)', 'Accuracy (%)',
+                      'FPS', '', '']
+            xlabels = ['', '', '', 'Inference Time (ms)', '', '']
         
         # 1. FPS性能对比 (左上)
         ax1 = plt.subplot(2, 3, 1)
         bars1 = ax1.bar(platforms, fps_data, color=colors)
-        ax1.set_title('推理性能对比 (FPS)', fontsize=14, fontweight='bold')
-        ax1.set_ylabel('FPS (frames per second)', fontsize=12)
+        ax1.set_title(titles[0], fontsize=14, fontweight='bold')
+        ax1.set_ylabel(ylabels[0], fontsize=12)
         ax1.tick_params(axis='x', rotation=45)
         for i, bar in enumerate(bars1):
             height = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
                     f'{fps_data[i]:.0f}', ha='center', va='bottom', fontweight='bold')
-                    
+                     
         # 2. 推理时间对比 (右上)
         ax2 = plt.subplot(2, 3, 2)
         bars2 = ax2.bar(platforms, time_data, color=colors)
-        ax2.set_title('平均推理时间对比', fontsize=14, fontweight='bold')
-        ax2.set_ylabel('时间 (ms)', fontsize=12)
+        ax2.set_title(titles[1], fontsize=14, fontweight='bold')
+        ax2.set_ylabel(ylabels[1], fontsize=12)
         ax2.tick_params(axis='x', rotation=45)
         for i, bar in enumerate(bars2):
             height = bar.get_height()
             ax2.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
                     f'{time_data[i]:.3f}', ha='center', va='bottom', fontweight='bold')
-                    
+                     
         # 3. 准确率对比 (中上)
         ax3 = plt.subplot(2, 3, 3)
         bars3 = ax3.bar(platforms, acc_data, color=colors)
-        ax3.set_title('模型准确率对比', fontsize=14, fontweight='bold')
-        ax3.set_ylabel('准确率 (%)', fontsize=12)
+        ax3.set_title(titles[2], fontsize=14, fontweight='bold')
+        ax3.set_ylabel(ylabels[2], fontsize=12)
         ax3.set_ylim(95, 100)  # 聚焦高准确率区间
         ax3.tick_params(axis='x', rotation=45)
         for i, bar in enumerate(bars3):
@@ -394,9 +429,9 @@ class CrossPlatformAnalyzer:
         # 4. 性能效率对比 (左下) - FPS vs 推理时间
         ax4 = plt.subplot(2, 3, 4)
         scatter = ax4.scatter(time_data, fps_data, c=colors, s=100, alpha=0.7)
-        ax4.set_xlabel('推理时间 (ms)', fontsize=12)
-        ax4.set_ylabel('FPS', fontsize=12)
-        ax4.set_title('性能效率分布', fontsize=14, fontweight='bold')
+        ax4.set_xlabel(xlabels[3], fontsize=12)
+        ax4.set_ylabel(ylabels[3], fontsize=12)
+        ax4.set_title(titles[3], fontsize=14, fontweight='bold')
         for i, platform in enumerate(platforms):
             ax4.annotate(platform.replace('\n', ' '), 
                         (time_data[i], fps_data[i]),
@@ -420,7 +455,10 @@ class CrossPlatformAnalyzer:
                 radar_data.append([fps_norm, acc_norm, time_norm])
             
             # 设置雷达图
-            categories = ['推理速度', '准确率', '时间效率']
+            if use_chinese:
+                categories = ['推理速度', '准确率', '时间效率']
+            else:
+                categories = ['Inference Speed', 'Accuracy', 'Time Efficiency']
             angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
             angles += angles[:1]  # 闭合
             
@@ -432,29 +470,36 @@ class CrossPlatformAnalyzer:
             ax5.set_xticks(angles[:-1])
             ax5.set_xticklabels(categories)
             ax5.set_ylim(0, 1)
-            ax5.set_title('综合性能雷达图', fontsize=14, fontweight='bold', pad=20)
+            ax5.set_title(titles[4], fontsize=14, fontweight='bold', pad=20)
             ax5.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
         
         # 6. 性能总结图表 (中下)
         ax6 = plt.subplot(2, 3, 6)
         ax6.axis('off')
         
-        # 性能排行文本
-        performance_text = "🏆 性能排行榜\n\n"
+        # 性能排行文本 (使用纯文本，避免emoji)
+        if use_chinese:
+            performance_text = "性能排行榜\n\n"
+            time_label = "时间"
+            acc_label = "准确率"
+        else:
+            performance_text = "Performance Ranking\n\n"
+            time_label = "Time"
+            acc_label = "Accuracy"
         
         # 按FPS排序
         sorted_indices = sorted(range(len(fps_data)), key=lambda i: fps_data[i], reverse=True)
-        medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣']
+        rank_labels = ['1st', '2nd', '3rd', '4th', '5th']
         
         for rank, idx in enumerate(sorted_indices):
-            medal = medals[rank] if rank < len(medals) else f"{rank+1}️⃣"
-            performance_text += f"{medal} {platforms[idx].replace(chr(10), ' ')}\n"
-            performance_text += f"   FPS: {fps_data[idx]:.1f}\n"
-            performance_text += f"   时间: {time_data[idx]:.3f}ms\n"
-            performance_text += f"   准确率: {acc_data[idx]:.1f}%\n\n"
+            rank_label = rank_labels[rank] if rank < len(rank_labels) else f"{rank+1}th"
+            performance_text += f"{rank_label}: {platforms[idx].replace(chr(10), ' ')}\n"
+            performance_text += f"    FPS: {fps_data[idx]:.1f}\n"
+            performance_text += f"    {time_label}: {time_data[idx]:.3f}ms\n"
+            performance_text += f"    {acc_label}: {acc_data[idx]:.1f}%\n\n"
         
-        ax6.text(0.1, 0.9, performance_text, transform=ax6.transAxes, 
-                fontsize=11, verticalalignment='top', fontfamily='monospace')
+        ax6.text(0.05, 0.95, performance_text, transform=ax6.transAxes, 
+                fontsize=10, verticalalignment='top', fontfamily='monospace')
         
         plt.tight_layout()
         chart_file = f"{self.results_dir}/comprehensive_cross_platform_analysis.png"
