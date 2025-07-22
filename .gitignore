@@ -1,0 +1,227 @@
+# =============================================================================
+# MNIST模型部署项目 .gitignore
+# 过滤二进制文件、中间结果、构建产物等
+# =============================================================================
+
+# Python 相关
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# PyTorch 模型文件（通常很大）
+# -----------------------------------------------------------------------------
+# 注意：如果要包含示例模型，可以用 !models/example_model.pth 来排除特定文件
+models/*.pth
+models/*.onnx
+models/*.pt
+models/*.pkl
+models/*.bin
+
+# 保留一个示例ONNX模型供教学使用
+!models/mnist_model.onnx
+
+# MNIST 数据集（通常很大）
+# -----------------------------------------------------------------------------
+data/MNIST/raw/
+data/MNIST/processed/
+data/**/*.gz
+data/**/*.ubyte
+data/**/*.idx*
+
+# 测试数据目录
+test_data*/
+test_data_mnist/
+test_data_common/
+
+# C/C++ 编译产物
+# -----------------------------------------------------------------------------
+# 目标文件
+*.o
+*.ko
+*.obj
+*.elf
+
+# 链接产物
+*.ilk
+*.map
+*.exp
+
+# 库文件
+*.lib
+*.a
+*.la
+*.lo
+
+# 共享对象文件 (Linux)
+*.so
+*.so.*
+
+# 动态链接库 (macOS)
+*.dylib
+
+# 动态链接库 (Windows)
+*.dll
+*.exe
+
+# 构建目录
+build/build_*/
+build/android/
+build/ios/
+build/linux/
+build/windows/
+
+# CMake 相关
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+!build/CMakeLists.txt
+
+# 可执行文件（根据项目调整）
+bin/
+mnist_inference_*
+!*.cpp
+!*.c
+!*.h
+
+# Android NDK 构建产物
+# -----------------------------------------------------------------------------
+android_executables/
+android_libs/
+.cxx/
+.gradle/
+local.properties
+
+# ONNX Runtime 库文件
+# -----------------------------------------------------------------------------
+onnxruntime-*/
+onnxruntime.*
+
+# 推理结果文件
+# -----------------------------------------------------------------------------
+results/*.json
+results/*.png
+results/*.pdf
+results/*.md
+results/*.csv
+
+# 保留示例对比报告供用户参考
+!results/mnist_results_comparison_report.md
+!results/mnist_results_comparison.png
+
+# 日志文件
+# -----------------------------------------------------------------------------
+*.log
+logs/
+*.out
+
+# 临时文件
+# -----------------------------------------------------------------------------
+*.tmp
+*.temp
+*~
+
+# 系统文件
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# IDE 和编辑器
+# -----------------------------------------------------------------------------
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# 备份文件
+# -----------------------------------------------------------------------------
+*.bak
+*.backup
+*.orig
+
+# 性能分析文件
+# -----------------------------------------------------------------------------
+*.prof
+
+# 其他项目特定文件
+# -----------------------------------------------------------------------------
+# 如果有配置文件包含敏感信息
+config.json
+settings.json
+*.config
+
+# 大型测试结果文件
+consistency_test_results.json
+
+# 如果有自动生成的文档
+docs/_build/
+
+# =============================================================================
+# 如果需要包含特定的被忽略文件，使用 ! 前缀
+# 例如：!models/example_model.onnx
+# ============================================================================= 
