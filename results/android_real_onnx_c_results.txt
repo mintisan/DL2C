@@ -1,0 +1,7 @@
+Android 真实 ONNX Runtime C API 推理结果
+==========================================
+测试样本数: 100
+准确率: 99.00%
+平均推理时间: 0.42 ms
+推理 FPS: 2361
+使用框架: ONNX Runtime C API (Android)
