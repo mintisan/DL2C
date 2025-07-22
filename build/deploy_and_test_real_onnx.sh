@@ -18,6 +18,7 @@ ANDROID_ABI="arm64-v8a"
 ANDROID_EXE_DIR="../android_executables/${ANDROID_ABI}"
 DEVICE_DIR="/data/local/tmp/mnist_real_onnx"
 RESULTS_DIR="../results"
+C_VERSION_AVAILABLE=false
 
 # 检查设备连接
 check_device() {
@@ -47,17 +48,32 @@ deploy_files() {
     # 创建设备目录
     adb shell "mkdir -p $DEVICE_DIR" 2>/dev/null || true
     
-    # 检查可执行文件
+    # 检查C++可执行文件
     if [ ! -f "$ANDROID_EXE_DIR/android_real_onnx_inference" ]; then
-        echo -e "${RED}错误: Android 可执行文件不存在: $ANDROID_EXE_DIR/android_real_onnx_inference${NC}"
+        echo -e "${RED}错误: Android C++ 可执行文件不存在: $ANDROID_EXE_DIR/android_real_onnx_inference${NC}"
         echo "请先运行 ./build_android_real_onnx.sh 编译"
         exit 1
     fi
     
-    # 推送可执行文件
-    echo -e "${BLUE}推送可执行文件...${NC}"
+    # 检查C可执行文件（可选）
+    if [ ! -f "$ANDROID_EXE_DIR/android_real_onnx_inference_c" ]; then
+        echo -e "${YELLOW}警告: Android C 可执行文件不存在，将跳过C版本测试${NC}"
+        C_VERSION_AVAILABLE=false
+    else
+        C_VERSION_AVAILABLE=true
+    fi
+    
+    # 推送C++可执行文件
+    echo -e "${BLUE}推送 C++ 可执行文件...${NC}"
     adb push "$ANDROID_EXE_DIR/android_real_onnx_inference" "$DEVICE_DIR/"
     adb shell "chmod +x $DEVICE_DIR/android_real_onnx_inference"
+    
+    # 推送C可执行文件（如果可用）
+    if [ "$C_VERSION_AVAILABLE" = true ]; then
+        echo -e "${BLUE}推送 C 可执行文件...${NC}"
+        adb push "$ANDROID_EXE_DIR/android_real_onnx_inference_c" "$DEVICE_DIR/"
+        adb shell "chmod +x $DEVICE_DIR/android_real_onnx_inference_c"
+    fi
     
     # 推送 ONNX 模型
     if [ -f "../models/mnist_model.onnx" ]; then
@@ -87,14 +103,30 @@ deploy_files() {
 run_android_tests() {
     echo -e "${YELLOW}在 Android 设备上运行真实 ONNX Runtime 测试...${NC}"
     
-    echo -e "${BLUE}执行推理测试...${NC}"
+    # 测试 C++ 版本
+    echo -e "${BLUE}执行 C++ 推理测试...${NC}"
     adb shell "cd $DEVICE_DIR && ./android_real_onnx_inference"
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ Android 真实 ONNX Runtime 测试完成${NC}"
+        echo -e "${GREEN}✓ Android 真实 ONNX Runtime C++ 测试完成${NC}"
     else
-        echo -e "${RED}✗ Android 真实 ONNX Runtime 测试失败${NC}"
+        echo -e "${RED}✗ Android 真实 ONNX Runtime C++ 测试失败${NC}"
         return 1
+    fi
+    
+    # 测试 C 版本（如果可用）
+    if [ "$C_VERSION_AVAILABLE" = true ]; then
+        echo -e "\n${BLUE}执行 C 推理测试...${NC}"
+        adb shell "cd $DEVICE_DIR && ./android_real_onnx_inference_c"
+        
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Android 真实 ONNX Runtime C 测试完成${NC}"
+        else
+            echo -e "${RED}✗ Android 真实 ONNX Runtime C 测试失败${NC}"
+            return 1
+        fi
+    else
+        echo -e "${YELLOW}跳过 C 版本测试（可执行文件不可用）${NC}"
     fi
 }
 
@@ -105,18 +137,34 @@ get_results() {
     # 确保本地结果目录存在
     mkdir -p "$RESULTS_DIR"
     
-    # 拉取结果文件
+    # 拉取C++版本结果文件
     if adb shell "test -f $DEVICE_DIR/results/android_real_onnx_results.txt"; then
         adb pull "$DEVICE_DIR/results/android_real_onnx_results.txt" "$RESULTS_DIR/"
-        echo -e "${GREEN}✓ 结果文件已下载到 $RESULTS_DIR/android_real_onnx_results.txt${NC}"
+        echo -e "${GREEN}✓ C++ 结果文件已下载到 $RESULTS_DIR/android_real_onnx_results.txt${NC}"
     else
-        echo -e "${YELLOW}警告: Android 结果文件不存在${NC}"
+        echo -e "${YELLOW}警告: Android C++ 结果文件不存在${NC}"
     fi
     
-    # 显示结果
+    # 拉取C版本结果文件（如果可用）
+    if [ "$C_VERSION_AVAILABLE" = true ]; then
+        if adb shell "test -f $DEVICE_DIR/results/android_real_onnx_c_results.txt"; then
+            adb pull "$DEVICE_DIR/results/android_real_onnx_c_results.txt" "$RESULTS_DIR/"
+            echo -e "${GREEN}✓ C 结果文件已下载到 $RESULTS_DIR/android_real_onnx_c_results.txt${NC}"
+        else
+            echo -e "${YELLOW}警告: Android C 结果文件不存在${NC}"
+        fi
+    fi
+    
+    # 显示C++版本结果
     if [ -f "$RESULTS_DIR/android_real_onnx_results.txt" ]; then
-        echo -e "${BLUE}Android 真实 ONNX Runtime 测试结果:${NC}"
+        echo -e "${BLUE}Android 真实 ONNX Runtime C++ 测试结果:${NC}"
         cat "$RESULTS_DIR/android_real_onnx_results.txt"
+    fi
+    
+    # 显示C版本结果（如果可用）
+    if [ "$C_VERSION_AVAILABLE" = true ] && [ -f "$RESULTS_DIR/android_real_onnx_c_results.txt" ]; then
+        echo -e "\n${BLUE}Android 真实 ONNX Runtime C 测试结果:${NC}"
+        cat "$RESULTS_DIR/android_real_onnx_c_results.txt"
     fi
 }
 

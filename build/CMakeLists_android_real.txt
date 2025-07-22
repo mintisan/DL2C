@@ -5,6 +5,10 @@ project(DL2C_Android_Real_ONNX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 设置C标准
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 # Android 特定设置
 set(CMAKE_SYSTEM_NAME Android)
 set(CMAKE_SYSTEM_VERSION 21)
@@ -155,4 +159,82 @@ target_link_options(android_real_onnx_inference PRIVATE
     -Wl,--gc-sections
     -Wl,--strip-all
     -static-libstdc++
+)
+
+# ========================================================
+# Android C 版本配置
+# ========================================================
+
+# C版本源文件
+set(C_INFERENCE_SOURCES 
+    ../../inference/android_real_onnx_inference.c
+)
+
+# 创建C版本可执行文件（需要用C++链接器链接ONNX Runtime）
+add_executable(android_real_onnx_inference_c ${C_INFERENCE_SOURCES})
+set_target_properties(android_real_onnx_inference_c PROPERTIES
+    LINKER_LANGUAGE CXX  # 使用C++链接器，因为ONNX Runtime是C++库
+)
+
+# C版本链接所有必需的ONNX Runtime库
+target_link_libraries(android_real_onnx_inference_c
+    # ONNX Runtime 核心库（按正确的链接顺序）
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_session.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_providers.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_framework.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_graph.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_optimizer.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_util.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_mlas.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_common.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_lora.a
+    ${ONNXRUNTIME_BUILD_DIR}/libonnxruntime_flatbuffers.a
+    
+    # ONNX协议库
+    ${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build/libonnx.a
+    ${ONNXRUNTIME_BUILD_DIR}/_deps/onnx-build/libonnx_proto.a
+    
+    # Protocol Buffers
+    ${ONNXRUNTIME_BUILD_DIR}/_deps/protobuf-build/libprotobuf-lite.a
+    
+    # 系统和硬件检测库
+    ${ONNXRUNTIME_BUILD_DIR}/_deps/pytorch_cpuinfo-build/libcpuinfo.a
+    
+    # 正则表达式库
+    ${ONNXRUNTIME_BUILD_DIR}/_deps/re2-build/libre2.a
+    
+    # Google Abseil C++ 库（使用已定义的变量，与C++版本一致）
+    ${ABSEIL_CORE_LIBS}
+    ${ABSEIL_LOG_LIBS}
+    ${ABSEIL_CONTAINER_LIBS}
+    ${ABSEIL_OTHER_LIBS}
+    log
+    m
+    dl
+    -static-libgcc
+    -static-libstdc++
+)
+
+# C版本输出目录
+set_target_properties(android_real_onnx_inference_c
+    PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "../../android_executables/arm64-v8a"
+)
+
+# C版本编译选项
+target_compile_options(android_real_onnx_inference_c PRIVATE
+    -ffunction-sections
+    -fdata-sections
+    -DONNX_MINIMAL_BUILD
+    -DORT_MINIMAL_BUILD
+    -Os  # 优化大小
+    -std=c99
+)
+
+# C版本链接选项（需要C++链接器支持）
+target_link_options(android_real_onnx_inference_c PRIVATE
+    -Wl,--gc-sections
+    -Wl,--strip-all
+    -static-libstdc++
+    -static-libgcc
 ) 

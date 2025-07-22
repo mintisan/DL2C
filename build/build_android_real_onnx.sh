@@ -105,12 +105,23 @@ build_real_onnx() {
 copy_executables() {
     echo -e "${YELLOW}复制可执行文件...${NC}"
     
+    # 复制C++版本
     if [ -f "build_android_real/android_real_onnx_inference" ]; then
         cp build_android_real/android_real_onnx_inference "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/"
         chmod +x "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference"
-        echo -e "${GREEN}✓ android_real_onnx_inference 已复制${NC}"
+        echo -e "${GREEN}✓ C++ 版本复制成功${NC}"
     else
-        echo -e "${RED}错误: 可执行文件未生成${NC}"
+        echo -e "${RED}错误: C++ 可执行文件未生成${NC}"
+        exit 1
+    fi
+    
+    # 复制C版本
+    if [ -f "build_android_real/android_real_onnx_inference_c" ]; then
+        cp build_android_real/android_real_onnx_inference_c "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/"
+        chmod +x "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference_c"
+        echo -e "${GREEN}✓ C 版本复制成功${NC}"
+    else
+        echo -e "${RED}错误: C 可执行文件未生成${NC}"
         exit 1
     fi
 }
@@ -121,11 +132,17 @@ show_results() {
     echo -e "${BLUE}生成的文件:${NC}"
     ls -la "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/"
     
-    echo -e "\n${BLUE}文件大小:${NC}"
-    ls -lh "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference" 2>/dev/null || echo "文件不存在"
+    echo -e "\n${BLUE}C++ 版本文件大小:${NC}"
+    ls -lh "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference" 2>/dev/null || echo "C++ 文件不存在"
+    
+    echo -e "\n${BLUE}C 版本文件大小:${NC}"
+    ls -lh "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference_c" 2>/dev/null || echo "C 文件不存在"
     
     echo -e "\n${BLUE}架构信息:${NC}"
-    file "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference" 2>/dev/null || echo "无法获取架构信息"
+    echo "C++ 版本:"
+    file "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference" 2>/dev/null || echo "无法获取 C++ 架构信息"
+    echo "C 版本:"
+    file "${PROJECT_DIR}/android_executables/${ANDROID_ABI}/android_real_onnx_inference_c" 2>/dev/null || echo "无法获取 C 架构信息"
     
     echo -e "\n${GREEN}下一步: 运行 ./deploy_and_test_real_onnx.sh 部署到 Android 设备${NC}"
 }
