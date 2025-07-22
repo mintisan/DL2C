@@ -113,6 +113,12 @@ cmake_install.cmake
 Makefile
 !build/CMakeLists.txt
 
+# Android 跨平台编译重要文件（需要跟踪以便迁移）
+!build/CMakeLists_android_real.txt
+!build/build_android_real_onnx.sh
+!build/deploy_and_test_real_onnx.sh
+!build/deploy_and_test.sh
+
 # 可执行文件（根据项目调整）
 bin/
 mnist_inference_*
