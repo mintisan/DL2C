@@ -139,15 +139,13 @@ print_step "编译统一版本macOS"
 echo "编译统一版本macOS推理程序..."
 
 if [ "$SKIP_MACOS_BUILD" = false ]; then
-    cd build
-    ./build.sh macos
+./build.sh macos
     if [ $? -eq 0 ]; then
         print_success "统一版本macOS编译完成"
     else
         print_error "统一版本macOS编译失败"
         SKIP_MACOS_BUILD=true
     fi
-    cd ..
 else
     print_warning "跳过macOS编译"
 fi
@@ -156,14 +154,12 @@ print_step "本地推理测试 (2/5 & 3/5) - 统一版本macOS C++和C"
 echo "运行统一版本macOS推理测试..."
 
 if [ "$SKIP_MACOS_BUILD" = false ]; then
-    cd build
     ./deploy_and_test.sh macos
     if [ $? -eq 0 ]; then
         print_success "统一版本macOS推理测试完成"
     else
         print_error "统一版本macOS推理测试失败"
     fi
-    cd ..
 else
     print_warning "跳过统一版本macOS测试"
 fi
@@ -172,7 +168,6 @@ print_step "编译统一版本Android"
 echo "编译统一版本Android推理程序..."
 
 if [ "$SKIP_ANDROID" = false ]; then
-    cd build
     export ANDROID_NDK_HOME="$ANDROID_NDK_HOME"
     export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"
     
@@ -183,7 +178,6 @@ if [ "$SKIP_ANDROID" = false ]; then
         print_error "统一版本Android编译失败"
         SKIP_ANDROID=true
     fi
-    cd ..
 else
     print_warning "跳过统一版本Android编译"
 fi
@@ -192,14 +186,12 @@ print_step "Android推理测试 (4/5 & 5/5) - 统一版本Android C++和C"
 echo "部署并运行统一版本Android推理测试..."
 
 if [ "$SKIP_ANDROID" = false ]; then
-    cd build
     ./deploy_and_test.sh android
     if [ $? -eq 0 ]; then
         print_success "统一版本Android推理测试完成"
     else
         print_error "统一版本Android推理测试失败"
     fi
-    cd ..
 else
     print_warning "跳过统一版本Android测试"
 fi
@@ -572,8 +564,8 @@ fi
 echo ""
 echo "💡 如需重新运行特定测试:"
 echo "   - Python: python inference/python_inference.py"
-echo "   - macOS 统一版本: cd build && ./deploy_and_test.sh macos"
-echo "   - Android 统一版本: cd build && ./deploy_and_test.sh android"
+   echo "   - macOS 统一版本: ./deploy_and_test.sh macos"
+   echo "   - Android 统一版本: ./deploy_and_test.sh android"
 echo "   - 性能分析: python performance_analysis.py"
 echo ""
 

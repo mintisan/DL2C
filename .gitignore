@@ -113,11 +113,8 @@ cmake_install.cmake
 Makefile
 !build/CMakeLists.txt
 
-# Android 跨平台编译重要文件（需要跟踪以便迁移）
-!build/CMakeLists_android_real.txt
-!build/build_android_real_onnx.sh
-!build/deploy_and_test_real_onnx.sh
-!build/deploy_and_test.sh
+# 重要的构建配置文件（需要跟踪）
+!build/CMakeLists.txt
 
 # 可执行文件（根据项目调整）
 bin/
@@ -139,17 +136,9 @@ local.properties
 onnxruntime-*/
 onnxruntime.*
 
-# 推理结果文件
+# 推理结果文件 - 完全忽略results目录
 # -----------------------------------------------------------------------------
-results/*.json
-results/*.png
-results/*.pdf
-results/*.md
-results/*.csv
-
-# 保留示例对比报告供用户参考
-!results/mnist_results_comparison_report.md
-!results/mnist_results_comparison.png
+results/
 
 # 日志文件
 # -----------------------------------------------------------------------------

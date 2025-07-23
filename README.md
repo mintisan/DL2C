@@ -76,14 +76,14 @@ DL2C/
 │   ├── python_inference.py        # Python版本（开发友好）
 │   ├── cpp_inference.cpp          # C++版本（高性能）
 │   └── c_inference.c              # C版本（最大兼容性）
-├── 🔨 build/                       # 编译和部署配置
+├── 🔨 build/                       # 编译配置和构建输出
 │   ├── CMakeLists.txt              # 统一的CMake配置
-│   ├── build.sh                   # 统一的编译脚本
-│   ├── deploy_and_test.sh         # 自动部署测试脚本
 │   ├── build_android/             # Android构建目录
 │   ├── build_macos/               # macOS构建目录
 │   ├── onnxruntime-android-arm64-v8a/ # Android ONNX Runtime
 │   └── onnxruntime-osx-arm64-1.16.0/  # macOS ONNX Runtime
+├── 🔧 build.sh                     # 统一的编译脚本
+├── 📱 deploy_and_test.sh           # 自动部署测试脚本
 ├── 📊 models/                      # 训练好的模型
 │   └── mnist_model.onnx           # ONNX格式模型
 ├── 📈 results/                     # 性能分析结果
@@ -146,8 +146,6 @@ python python_inference.py  # Python推理基准
 
 #### 3. 编译跨平台版本
 ```bash
-cd build
-
 # 编译macOS版本
 ./build.sh macos
 
