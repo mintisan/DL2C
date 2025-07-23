@@ -464,13 +464,10 @@ main() {
     echo -e "\n${GREEN}=== $TEST_TARGET 统一版本测试完成！===${NC}"
     echo "结束时间: $(date)"
     
-    # 询问是否清理设备文件
+    # 自动清理Android设备文件
     if [[ "$TEST_TARGET" == "android" ]]; then
-        echo -e "\n${YELLOW}是否清理Android设备上的测试文件? (Y/n)${NC}"
-        read -r response
-        if [[ ! "$response" =~ ^[Nn]$ ]]; then
-            cleanup_device
-        fi
+        echo -e "\n${YELLOW}自动清理Android设备上的测试文件...${NC}"
+        cleanup_device
     fi
 }
 

@@ -154,7 +154,7 @@ print_step "本地推理测试 (2/5 & 3/5) - 统一版本macOS C++和C"
 echo "运行统一版本macOS推理测试..."
 
 if [ "$SKIP_MACOS_BUILD" = false ]; then
-    ./deploy_and_test.sh macos
+    echo "Y" | ./deploy_and_test.sh macos
     if [ $? -eq 0 ]; then
         print_success "统一版本macOS推理测试完成"
     else
@@ -186,7 +186,7 @@ print_step "Android推理测试 (4/5 & 5/5) - 统一版本Android C++和C"
 echo "部署并运行统一版本Android推理测试..."
 
 if [ "$SKIP_ANDROID" = false ]; then
-    ./deploy_and_test.sh android
+    echo "Y" | ./deploy_and_test.sh android
     if [ $? -eq 0 ]; then
         print_success "统一版本Android推理测试完成"
     else
