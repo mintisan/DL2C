@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-MNIST模型部署教学脚本
-一步一步引导用户完成从训练到部署的完整流程
+MNIST模型部署教学脚本 - 统一版本跨平台教程
+一步一步引导用户完成从训练到跨平台部署的完整流程
+支持 Python + macOS C/C++ + Android C/C++ 的统一版本部署
 """
 
 import os
@@ -15,6 +16,33 @@ class MNISTTutorial:
     def __init__(self):
         self.project_root = Path.cwd()
         self.steps_completed = []
+        self.platforms_available = self.check_platform_support()
+        
+    def check_platform_support(self):
+        """检查平台支持情况"""
+        platforms = {
+            'macos': True,  # 当前运行平台
+            'android': False,
+            'onnxruntime': False
+        }
+        
+        # 检查 Android 支持 (adb + NDK)
+        try:
+            subprocess.run(["adb", "version"], capture_output=True, check=True)
+            ndk_path = os.environ.get('ANDROID_NDK_ROOT') or "/opt/homebrew/share/android-ndk"
+            if os.path.exists(ndk_path):
+                platforms['android'] = True
+        except:
+            pass
+        
+        # 检查 ONNX Runtime
+        try:
+            if os.path.exists("/opt/homebrew/include/onnxruntime"):
+                platforms['onnxruntime'] = True
+        except:
+            pass
+            
+        return platforms
         
     def print_step(self, step_num, title, description):
         """打印步骤标题"""
@@ -76,19 +104,19 @@ class MNISTTutorial:
     def step1_train_model(self):
         """步骤1: 训练MNIST模型"""
         self.print_step(1, "训练MNIST模型", 
-                       "首先我们将训练一个简单的CNN模型来识别MNIST手写数字。\n"
-                       "这个模型包含2个卷积层和2个全连接层。\n\n"
-                       "选择训练模式:\n"
-                       "1. 快速演示版 (1分钟，1000样本，1个epoch) - 推荐学习\n"
-                       "2. 完整训练版 (5-10分钟，60000样本，5个epoch) - 更好精度")
+                       "我们将训练一个简单的CNN模型来识别MNIST手写数字。\n"
+                       "这个模型包含2个卷积层和2个全连接层。\n"
+                       "训练将使用MNIST数据集，包含60000个训练样本。")
         
-        choice = input("请选择训练模式 (1/2，默认1): ").strip()
-        if choice == "2":
-            script_name = "train_model.py"
-            print("选择完整训练版...")
-        else:
-            script_name = "train_model_quick.py"
-            print("选择快速演示版...")
+        # 检查模型是否已存在
+        model_path = self.project_root / "models" / "mnist_model.pth"
+        if model_path.exists():
+            print(f"✓ 发现已存在的模型文件: {model_path}")
+            choice = input("是否重新训练模型？(y/n，默认n): ").strip().lower()
+            if choice not in ['y', 'yes']:
+                print("跳过训练，使用现有模型")
+                self.steps_completed.append("train")
+                return True
         
         self.wait_for_user("准备开始训练模型...")
         
@@ -97,7 +125,7 @@ class MNISTTutorial:
         print("正在训练模型...")
         try:
             # 使用实时输出，不缓冲
-            process = subprocess.Popen([sys.executable, script_name], 
+            process = subprocess.Popen([sys.executable, "train_model.py"], 
                                      stdout=subprocess.PIPE, 
                                      stderr=subprocess.STDOUT,
                                      text=True, 
@@ -163,28 +191,18 @@ class MNISTTutorial:
             
             return_code = process.poll()
             if return_code != 0:
-                print(f"\n⚠️  标准量化失败，使用兼容版本...")
-                print("🔄 在macOS上使用模拟量化方法...")
+                print(f"\n⚠️  量化失败，退出码: {return_code}")
+                print("🔄 量化步骤失败，但可以继续使用原始模型进行后续步骤")
                 
-                # 使用兼容的量化版本
-                process = subprocess.Popen([sys.executable, "quantize_model_simple.py"], 
-                                         stdout=subprocess.PIPE, 
-                                         stderr=subprocess.STDOUT,
-                                         text=True, 
-                                         bufsize=1,
-                                         universal_newlines=True)
-                
-                # 实时打印输出
-                while True:
-                    output = process.stdout.readline()
-                    if output == '' and process.poll() is not None:
-                        break
-                    if output:
-                        print(output.strip())
-                
-                return_code = process.poll()
-                if return_code != 0:
-                    print(f"兼容量化也失败，退出码: {return_code}")
+                # 检查原始模型是否存在
+                original_model = self.project_root / "models" / "mnist_model.pth"
+                if original_model.exists():
+                    print("✓ 原始模型存在，可以继续后续步骤")
+                    print("📝 注意: 将使用未量化的模型进行推理")
+                    self.steps_completed.append("quantize")
+                    return True
+                else:
+                    print("❌ 原始模型也不存在，请先完成训练步骤")
                     return False
             
             # 检查量化模型文件
@@ -311,278 +329,447 @@ class MNISTTutorial:
             os.chdir(self.project_root)
     
     def step5_setup_cpp_environment(self):
-        """步骤5: 设置C++编译环境"""
-        self.print_step(5, "设置C++编译环境", 
-                       "为了编译C++版本，我们需要安装ONNX Runtime C++库。\n"
-                       "这将允许我们创建更高性能的推理引擎。")
+        """步骤5: 设置统一版本编译环境"""
+        self.print_step(5, "设置统一版本编译环境", 
+                       "检查跨平台编译环境，支持 macOS 和 Android 统一版本编译。\n"
+                       "统一版本架构使用单一源码支持多平台部署。")
         
-        print("检查ONNX Runtime C++库...")
+        print("🔍 检查编译环境...")
         
-        # 检查是否已经有ONNX Runtime
-        homebrew_path = "/opt/homebrew/include/onnxruntime/onnxruntime_cxx_api.h"
-        if os.path.exists(homebrew_path):
-            print("✓ 发现Homebrew安装的ONNX Runtime")
-            return True
+        # 显示平台支持状态
+        print(f"✓ macOS 编译: {self.platforms_available['macos']}")
+        print(f"{'✓' if self.platforms_available['onnxruntime'] else '✗'} ONNX Runtime: {self.platforms_available['onnxruntime']}")
+        print(f"{'✓' if self.platforms_available['android'] else '✗'} Android 编译: {self.platforms_available['android']}")
         
-        # 提示用户安装
-        print("未找到ONNX Runtime C++库")
-        print("\n安装选项:")
-        print("1. 使用Homebrew安装 (推荐)")
-        print("2. 手动下载预编译版本")
+        # 检查必要的工具
+        missing_tools = []
+        if not self.platforms_available['onnxruntime']:
+            missing_tools.append("ONNX Runtime")
         
-        choice = input("请选择安装方式 (1/2): ").strip()
+        try:
+            subprocess.run(["cmake", "--version"], capture_output=True, check=True)
+            print("✓ CMake 已安装")
+        except:
+            missing_tools.append("CMake")
+            print("✗ CMake 未安装")
         
-        if choice == "1":
-            print("正在使用Homebrew安装ONNX Runtime...")
-            try:
-                result = subprocess.run(["brew", "install", "onnxruntime"], 
-                                      capture_output=True, text=True, check=True)
-                print("✓ ONNX Runtime安装成功")
-                return True
-            except subprocess.CalledProcessError as e:
-                print(f"Homebrew安装失败: {e}")
-                print("请尝试手动安装或检查Homebrew配置")
-                return False
-        elif choice == "2":
-            print("\n手动安装步骤:")
-            print("1. 访问: https://github.com/microsoft/onnxruntime/releases")
-            print("2. 下载适合您平台的预编译版本")
-            print("3. 解压到build目录下")
-            print("例如: build/onnxruntime-osx-arm64-1.16.0/")
+        if missing_tools:
+            print(f"\n⚠️  缺少工具: {', '.join(missing_tools)}")
+            print("安装命令:")
+            if "ONNX Runtime" in missing_tools:
+                print("  brew install onnxruntime")
+            if "CMake" in missing_tools:
+                print("  brew install cmake")
+            if not self.platforms_available['android']:
+                print("  brew install --cask android-platform-tools")
+                print("  brew install --cask android-ndk")
             
-            self.wait_for_user("完成手动安装后按回车继续...")
-            return True
-        else:
-            print("无效的选择")
-            return False
+            choice = input("是否继续进行可用平台的编译？(y/n): ").strip().lower()
+            return choice in ['y', 'yes']
+        
+        print("✅ 编译环境准备就绪")
+        return True
     
     def step6_compile_cpp(self):
-        """步骤6: 编译C++版本"""
-        self.print_step(6, "编译C++推理程序", 
-                       "现在我们将编译C++版本的推理程序。\n"
-                       "C++版本通常比Python版本更快，适合生产环境。")
+        """步骤6: 编译统一版本程序"""
+        self.print_step(6, "编译统一版本推理程序", 
+                       "使用统一版本编译脚本，支持 macOS 和 Android 双平台。\n"
+                       "统一版本确保代码一致性和跨平台兼容性。")
         
-        self.wait_for_user("准备编译C++程序...")
+        # 选择编译平台
+        print("🎯 可用编译平台:")
+        print("1. macOS (本地测试)")
+        if self.platforms_available['android']:
+            print("2. Android (移动部署)")
+            print("3. 全部平台")
         
-        # 创建build目录
-        build_dir = self.project_root / "build" / "build_macos"
-        build_dir.mkdir(parents=True, exist_ok=True)
+        choice = input("请选择编译平台 (默认1): ").strip()
         
-        os.chdir(build_dir)
+        platforms_to_build = []
+        if choice == "2" and self.platforms_available['android']:
+            platforms_to_build = ["android"]
+        elif choice == "3" and self.platforms_available['android']:
+            platforms_to_build = ["macos", "android"]
+        else:
+            platforms_to_build = ["macos"]
         
-        print("正在配置CMake...")
-        try:
-            # 配置
-            result = subprocess.run([
-                "cmake", 
-                "-DCMAKE_BUILD_TYPE=Release",
-                ".."
-            ], capture_output=True, text=True, check=True)
+        success_count = 0
+        for platform in platforms_to_build:
+            print(f"\n🔨 编译 {platform} 版本...")
+            self.wait_for_user(f"准备编译 {platform} 版本...")
             
-            print("CMake配置成功")
-            
-            # 编译
-            print("正在编译...")
-            result = subprocess.run([
-                "make", "-j4"
-            ], capture_output=True, text=True, check=True)
-            
-            print("编译成功!")
-            
-            # 检查可执行文件
-            exe_path = build_dir / "bin" / "mnist_inference_cpp"
-            if exe_path.exists():
-                print(f"✓ 可执行文件生成: {exe_path}")
-                self.steps_completed.append("cpp_compile")
-                return True
-            else:
-                print("✗ 可执行文件未生成")
-                return False
+            try:
+                # 使用统一版本编译脚本
+                process = subprocess.Popen([
+                    "./build.sh", platform
+                ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                   text=True, bufsize=1, universal_newlines=True)
                 
+                # 实时打印输出
+                while True:
+                    output = process.stdout.readline()
+                    if output == '' and process.poll() is not None:
+                        break
+                    if output:
+                        print(output.strip())
+                
+                return_code = process.poll()
+                if return_code == 0:
+                    print(f"✅ {platform} 版本编译成功!")
+                    success_count += 1
+                    
+                    # 检查生成的可执行文件
+                    if platform == "macos":
+                        cpp_exe = self.project_root / "inference" / "cpp_inference"
+                        c_exe = self.project_root / "inference" / "c_inference"
+                        if cpp_exe.exists() and c_exe.exists():
+                            print(f"✓ macOS 可执行文件已生成")
+                    elif platform == "android":
+                        android_dir = self.project_root / "android_executables"
+                        if android_dir.exists():
+                            print(f"✓ Android 可执行文件已生成")
+                else:
+                    print(f"❌ {platform} 版本编译失败")
+                    
+            except Exception as e:
+                print(f"❌ {platform} 编译过程出错: {e}")
+        
+        if success_count > 0:
+            print(f"\n🎉 编译完成! 成功编译 {success_count}/{len(platforms_to_build)} 个平台")
+            self.steps_completed.append("unified_compile")
+            return True
+        else:
+            print("❌ 所有平台编译失败")
+            return False
+    
+    def step7_test_inference(self):
+        """步骤7: 跨平台推理测试"""
+        self.print_step(7, "跨平台推理性能测试", 
+                       "运行统一版本的推理程序，测试不同平台的性能表现。\n"
+                       "支持 macOS 本地测试和 Android 设备测试。")
+        
+        print("🎯 可用测试平台:")
+        print("1. macOS (本地)")
+        if self.platforms_available['android']:
+            print("2. Android (需要连接设备)")
+            print("3. 完整跨平台测试")
+        
+        choice = input("请选择测试平台 (默认1): ").strip()
+        
+        if choice == "3" and self.platforms_available['android']:
+            # 运行完整跨平台测试
+            return self.run_cross_platform_test()
+        elif choice == "2" and self.platforms_available['android']:
+            # 单独运行Android测试
+            return self.run_android_test()
+        else:
+            # 运行macOS测试
+            return self.run_macos_test()
+    
+    def run_macos_test(self):
+        """运行macOS本地测试"""
+        print("🍎 运行 macOS 推理测试...")
+        self.wait_for_user("准备测试 macOS 推理...")
+        
+        # 检查可执行文件
+        cpp_exe = self.project_root / "inference" / "cpp_inference"
+        c_exe = self.project_root / "inference" / "c_inference"
+        
+        if not cpp_exe.exists() or not c_exe.exists():
+            print("❌ macOS 可执行文件不存在，请先编译")
+            return False
+        
+        os.chdir(self.project_root / "inference")
+        
+        try:
+            # 测试C++版本
+            print("🔬 测试 C++ 版本...")
+            result = subprocess.run(["./cpp_inference"], 
+                                  capture_output=True, text=True, check=True)
+            print("C++ 推理完成")
+            
+            # 测试C版本
+            print("🔬 测试 C 版本...")
+            result = subprocess.run(["./c_inference"], 
+                                  capture_output=True, text=True, check=True)
+            print("C 推理完成")
+            
+            # 显示结果文件
+            self.show_inference_results("macos")
+            self.steps_completed.append("macos_inference")
+            return True
+            
         except subprocess.CalledProcessError as e:
-            print(f"编译失败: {e}")
-            print(f"错误输出: {e.stderr}")
-            print("\n可能的解决方案:")
-            print("1. 确保已安装ONNX Runtime")
-            print("2. 检查CMake和编译器是否正确安装")
-            print("3. 查看详细错误信息")
+            print(f"❌ macOS 推理失败: {e}")
             return False
         finally:
             os.chdir(self.project_root)
     
-    def step7_test_cpp_inference(self):
-        """步骤7: 测试C++推理"""
-        self.print_step(7, "测试C++推理性能", 
-                       "运行C++推理程序并比较与Python版本的性能差异。")
+    def run_android_test(self):
+        """运行Android设备测试"""
+        print("📱 运行 Android 推理测试...")
+        self.wait_for_user("准备测试 Android 推理...")
         
-        self.wait_for_user("准备测试C++推理...")
-        
-        exe_path = self.project_root / "build" / "build_macos" / "bin" / "mnist_inference_cpp"
-        
-        if not exe_path.exists():
-            print(f"✗ 可执行文件不存在: {exe_path}")
-            return False
-        
-        print("正在运行C++推理测试...")
         try:
-            result = subprocess.run([str(exe_path)], 
-                                  capture_output=True, text=True, check=True, 
-                                  cwd=str(self.project_root))
-            print("C++推理输出:")
-            print(result.stdout)
+            # 使用部署脚本进行Android测试
+            process = subprocess.Popen([
+                "./deploy_and_test.sh", "android"
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+               text=True, bufsize=1, universal_newlines=True)
             
-            # 检查结果文件
-            results_path = self.project_root / "results" / "cpp_inference_results.json"
-            if results_path.exists():
-                with open(results_path, 'r') as f:
-                    results = json.load(f)
-                    
-                summary = results['summary']
-                print(f"\n📊 C++推理结果:")
-                print(f"平均推理时间: {summary['average_inference_time_ms']:.2f} ms")
-                print(f"推理速度: {summary['fps']:.1f} FPS")
-                
-                self.steps_completed.append("cpp_inference")
+            # 实时打印输出
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    print(output.strip())
+            
+            return_code = process.poll()
+            if return_code == 0:
+                print("✅ Android 推理测试完成")
+                self.show_inference_results("android")
+                self.steps_completed.append("android_inference")
                 return True
             else:
-                print("✓ C++推理完成（结果文件生成可选）")
-                self.steps_completed.append("cpp_inference")
-                return True
+                print("❌ Android 推理测试失败")
+                return False
                 
-        except subprocess.CalledProcessError as e:
-            print(f"C++推理失败: {e}")
-            print(f"错误输出: {e.stderr}")
+        except Exception as e:
+            print(f"❌ Android 测试过程出错: {e}")
             return False
     
-    def step8_test_c_inference(self):
-        """步骤8: 测试C推理"""
-        self.print_step(8, "测试C语言推理性能", 
-                       "运行纯C语言推理程序，体验最底层的ONNX Runtime C API。\n"
-                       "C语言版本通常有最好的跨平台兼容性。")
+    def run_cross_platform_test(self):
+        """运行完整跨平台测试"""
+        print("🌍 运行完整跨平台测试...")
+        self.wait_for_user("准备运行完整跨平台测试...")
         
-        self.wait_for_user("准备测试C语言推理...")
-        
-        exe_path = self.project_root / "build" / "build_macos" / "bin" / "mnist_inference_c"
-        
-        if not exe_path.exists():
-            print(f"✗ 可执行文件不存在: {exe_path}")
-            return False
-        
-        print("正在运行C语言推理测试...")
         try:
-            result = subprocess.run([str(exe_path)], 
-                                  capture_output=True, text=True, check=True, 
-                                  cwd=str(self.project_root))
-            print("C语言推理输出:")
-            print(result.stdout)
+            # 使用完整测试脚本
+            process = subprocess.Popen([
+                "./run_all_platforms.sh"
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+               text=True, bufsize=1, universal_newlines=True)
             
-            # 检查结果文件
-            results_path = self.project_root / "results" / "c_inference_results.json"
-            if results_path.exists():
-                with open(results_path, 'r') as f:
-                    results = json.load(f)
-                    
-                summary = results['summary']
-                print(f"\n📊 C语言推理结果:")
-                print(f"平均推理时间: {summary['average_inference_time_ms']:.2f} ms")
-                print(f"推理速度: {summary['fps']:.1f} FPS")
-                
-                self.steps_completed.append("c_inference")
+            # 实时打印输出
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    print(output.strip())
+            
+            return_code = process.poll()
+            if return_code == 0:
+                print("✅ 跨平台测试完成")
+                self.show_inference_results("all")
+                self.steps_completed.append("cross_platform_inference")
                 return True
             else:
-                print("✓ C语言推理完成（结果文件生成可选）")
-                self.steps_completed.append("c_inference")
-                return True
+                print("❌ 跨平台测试失败")
+                return False
                 
-        except subprocess.CalledProcessError as e:
-            print(f"C语言推理失败: {e}")
-            print(f"错误输出: {e.stderr}")
+        except Exception as e:
+            print(f"❌ 跨平台测试过程出错: {e}")
             return False
     
-    def step9_compare_results(self):
-        """步骤9: 三种语言性能对比"""
-        self.print_step(9, "三种语言推理性能对比", 
-                       "比较Python、C++和C语言三种实现的推理性能差异。")
+    def show_inference_results(self, platform_type):
+        """显示推理结果"""
+        results_dir = self.project_root / "results"
         
-        # 加载三种语言的结果
-        python_results_path = self.project_root / "results" / "python_inference_results.json"
-        cpp_results_path = self.project_root / "results" / "cpp_inference_results.json"
-        c_results_path = self.project_root / "results" / "c_inference_results.json"
+        print(f"\n📊 {platform_type.upper()} 推理结果:")
+        print("=" * 50)
         
-        python_data = None
-        cpp_data = None
-        c_data = None
+        # 根据平台类型显示对应结果
+        result_files = []
+        if platform_type == "macos":
+            result_files = ["macos_cpp_results.txt", "macos_c_results.txt"]
+        elif platform_type == "android":
+            result_files = ["android_cpp_results.txt", "android_c_results.txt"]
+        elif platform_type == "all":
+            result_files = ["python_inference_results.json", 
+                          "macos_cpp_results.txt", "macos_c_results.txt",
+                          "android_cpp_results.txt", "android_c_results.txt"]
         
-        if python_results_path.exists():
-            with open(python_results_path, 'r', encoding='utf-8') as f:
-                python_data = json.load(f)
+        for result_file in result_files:
+            result_path = results_dir / result_file
+            if result_path.exists():
+                print(f"\n🔍 {result_file}:")
+                if result_path.suffix == '.json':
+                    with open(result_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        summary = data['summary']
+                        print(f"  准确率: {summary['accuracy']:.2%}")
+                        print(f"  平均时间: {summary['average_inference_time_ms']:.2f} ms")
+                        print(f"  推理速度: {summary['fps']:.1f} FPS")
+                else:
+                    # 读取文本结果文件的关键信息
+                    with open(result_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        import re
+                        acc_match = re.search(r'准确率:\s*([0-9.]+)%', content)
+                        time_match = re.search(r'平均推理时间:\s*([0-9.]+)\s*ms', content)
+                        fps_match = re.search(r'推理速度:\s*([0-9.]+)\s*FPS', content)
+                        
+                        if acc_match:
+                            print(f"  准确率: {acc_match.group(1)}%")
+                        if time_match:
+                            print(f"  平均时间: {time_match.group(1)} ms")
+                        if fps_match:
+                            print(f"  推理速度: {fps_match.group(1)} FPS")
+            else:
+                print(f"⚠️  {result_file} 不存在")
         
-        if cpp_results_path.exists():
-            with open(cpp_results_path, 'r') as f:
-                cpp_data = json.load(f)
-                
-        if c_results_path.exists():
-            with open(c_results_path, 'r') as f:
-                c_data = json.load(f)
+        # 检查是否有可视化图表
+        chart_path = results_dir / "cross_platform_analysis.png"
+        if chart_path.exists():
+            print(f"\n📈 可视化图表已生成: {chart_path}")
+            print("可使用以下命令查看:")
+            print(f"  open {chart_path}")
         
-        print("\n📊 三种语言性能对比报告:")
+        # 检查是否有分析报告
+        report_path = results_dir / "unified_cross_platform_report.md"
+        if report_path.exists():
+            print(f"\n📋 详细分析报告: {report_path}")
+     
+    def step8_analyze_performance(self):
+        """步骤8: 跨平台性能分析"""
+        self.print_step(8, "跨平台性能深度分析", 
+                       "生成详细的跨平台性能分析报告和可视化图表。\n"
+                       "对比不同平台、不同语言的性能表现和优化建议。")
+        
+        self.wait_for_user("准备生成性能分析报告...")
+        
+        # 检查可用的结果文件
+        results_dir = self.project_root / "results"
+        available_results = []
+        
+        result_files = [
+            ("python_inference_results.json", "Python"),
+            ("macos_cpp_results.txt", "macOS C++"),
+            ("macos_c_results.txt", "macOS C"),
+            ("android_cpp_results.txt", "Android C++"),
+            ("android_c_results.txt", "Android C")
+        ]
+        
+        for file_name, description in result_files:
+            if (results_dir / file_name).exists():
+                available_results.append(description)
+        
+        print(f"📊 发现 {len(available_results)} 个测试结果:")
+        for result in available_results:
+            print(f"  ✓ {result}")
+        
+        if len(available_results) < 2:
+            print("⚠️  需要至少2个平台的结果进行对比分析")
+            print("请先运行推理测试获得更多结果")
+            return False
+        
+        # 显示详细的性能对比
+        print("\n📈 跨平台性能对比分析:")
         print("=" * 60)
         
-        if python_data:
-            py_summary = python_data['summary']
-            print(f"🐍 Python (ONNX Runtime Python API):")
-            print(f"    准确率: {py_summary['accuracy']:.2%}")
-            print(f"    平均时间: {py_summary['average_inference_time_ms']:.2f} ms")
-            print(f"    推理速度: {py_summary['fps']:.1f} FPS")
+        # 解析并显示各平台性能数据
+        performance_data = {}
         
-        if cpp_data:
-            cpp_summary = cpp_data['summary']
-            print(f"⚡ C++ (ONNX Runtime C++ API):")
-            print(f"    平均时间: {cpp_summary['average_inference_time_ms']:.2f} ms")
-            print(f"    推理速度: {cpp_summary['fps']:.1f} FPS")
+        for file_name, description in result_files:
+            file_path = results_dir / file_name
+            if file_path.exists():
+                try:
+                    if file_name.endswith('.json'):
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            summary = data['summary']
+                            performance_data[description] = {
+                                'accuracy': summary['accuracy'],
+                                'time_ms': summary['average_inference_time_ms'],
+                                'fps': summary['fps']
+                            }
+                    else:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            import re
+                            acc_match = re.search(r'准确率:\s*([0-9.]+)%', content)
+                            time_match = re.search(r'平均推理时间:\s*([0-9.]+)\s*ms', content)
+                            fps_match = re.search(r'推理速度:\s*([0-9.]+)\s*FPS', content)
+                            
+                            performance_data[description] = {
+                                'accuracy': float(acc_match.group(1)) / 100 if acc_match else None,
+                                'time_ms': float(time_match.group(1)) if time_match else None,
+                                'fps': float(fps_match.group(1)) if fps_match else None
+                            }
+                except Exception as e:
+                    print(f"⚠️  解析 {description} 结果时出错: {e}")
         
-        if c_data:
-            c_summary = c_data['summary']
-            print(f"🔧 C (ONNX Runtime C API):")
-            print(f"    平均时间: {c_summary['average_inference_time_ms']:.2f} ms")
-            print(f"    推理速度: {c_summary['fps']:.1f} FPS")
+        # 显示性能表格
+        print(f"{'平台':<15} {'准确率':<10} {'时间(ms)':<10} {'速度(FPS)':<12}")
+        print("-" * 50)
         
-        # 性能对比分析
-        if python_data and cpp_data and c_data:
-            py_time = python_data['summary']['average_inference_time_ms']
-            cpp_time = cpp_data['summary']['average_inference_time_ms']
-            c_time = c_data['summary']['average_inference_time_ms']
-            
-            print(f"\n📈 性能提升对比 (相对于Python):")
-            print(f"    C++加速: {py_time / cpp_time:.2f}x")
-            print(f"    C语言加速: {py_time / c_time:.2f}x")
-            
-            if cpp_time != 0 and c_time != 0:
-                print(f"    C vs C++: {cpp_time / c_time:.2f}x")
+        for platform, data in performance_data.items():
+            acc_str = f"{data['accuracy']:.2%}" if data['accuracy'] else "N/A"
+            time_str = f"{data['time_ms']:.2f}" if data['time_ms'] else "N/A"
+            fps_str = f"{data['fps']:.1f}" if data['fps'] else "N/A"
+            print(f"{platform:<15} {acc_str:<10} {time_str:<10} {fps_str:<12}")
         
-        print("\n🎉 完整推理性能测试完成!")
-        print("\n🚀 接下来可以尝试:")
-        print("1. Android NDK编译 (需要Android开发环境)")
-        print("2. 模型优化和量化技术")
-        print("3. 集成到实际移动应用中")
-        print("4. 尝试其他深度学习模型")
+        # 性能洞察分析
+        print("\n🔍 性能洞察:")
+        if len(performance_data) >= 2:
+            # 找出最快和最慢的平台
+            valid_times = {k: v['time_ms'] for k, v in performance_data.items() if v['time_ms']}
+            if valid_times:
+                fastest = min(valid_times, key=valid_times.get)
+                slowest = max(valid_times, key=valid_times.get)
+                speedup = valid_times[slowest] / valid_times[fastest]
+                
+                print(f"🏆 最快平台: {fastest} ({valid_times[fastest]:.2f}ms)")
+                print(f"🐌 最慢平台: {slowest} ({valid_times[slowest]:.2f}ms)")
+                print(f"📊 性能差异: {speedup:.2f}x")
+                
+                # 跨平台兼容性分析
+                print(f"\n🌍 跨平台一致性:")
+                accuracies = [v['accuracy'] for v in performance_data.values() if v['accuracy']]
+                if len(accuracies) > 1:
+                    max_acc = max(accuracies)
+                    min_acc = min(accuracies)
+                    print(f"准确率范围: {min_acc:.2%} - {max_acc:.2%}")
+                    if max_acc - min_acc < 0.01:  # 1%以内
+                        print("✅ 跨平台准确率高度一致")
+                    else:
+                        print("⚠️  跨平台准确率存在差异")
         
+        # 检查是否生成了可视化图表
+        chart_path = results_dir / "cross_platform_analysis.png"
+        report_path = results_dir / "unified_cross_platform_report.md"
+        
+        if chart_path.exists():
+            print(f"\n📊 可视化图表: {chart_path}")
+            print("查看图表: open results/cross_platform_analysis.png")
+        
+        if report_path.exists():
+            print(f"📋 详细报告: {report_path}")
+        
+        print("\n🎯 优化建议:")
+        print("1. 移动端部署优先选择 C/C++ 版本")
+        print("2. 开发阶段使用 Python 版本快速验证")
+        print("3. 生产环境根据平台选择最优实现")
+        print("4. 考虑模型量化进一步提升性能")
+        
+        self.steps_completed.append("performance_analysis")
         return True
     
     def run_tutorial(self):
         """运行完整教程"""
-        print("🎓 MNIST模型部署教程")
+        print("🎓 MNIST模型部署教程 - 统一版本跨平台")
         print("=" * 50)
         print("本教程将引导您完成以下步骤:")
         print("1. 训练MNIST模型")
         print("2. 模型量化")
         print("3. 导出ONNX格式")
         print("4. Python推理测试")
-        print("5. 设置C++环境")
-        print("6. 编译C++/C程序")
-        print("7. C++推理测试")
-        print("8. C语言推理测试")
-        print("9. 三种语言性能对比")
+        print("5. 设置统一版本编译环境")
+        print("6. 编译统一版本程序 (macOS + Android)")
+        print("7. 跨平台推理测试")
+        print("8. 跨平台性能分析")
         
         self.wait_for_user("\n准备开始学习？")
         
@@ -599,9 +786,8 @@ class MNISTTutorial:
             self.step4_python_inference,
             self.step5_setup_cpp_environment,
             self.step6_compile_cpp,
-            self.step7_test_cpp_inference,
-            self.step8_test_c_inference,
-            self.step9_compare_results
+            self.step7_test_inference, # Corrected from step7_test_cpp_inference to step7_test_inference
+            self.step8_analyze_performance # Corrected from step8_test_c_inference to step8_analyze_performance
         ]
         
         for i, step_func in enumerate(steps, 1):
@@ -626,9 +812,19 @@ class MNISTTutorial:
                 print(f"\n❌ 步骤 {i} 出现意外错误: {e}")
                 continue
         
-        print("\n🎉 教程完成!")
-        print(f"已完成步骤: {len(self.steps_completed)}/9")
-        print("感谢您完成MNIST模型部署教程！")
+        print("\n🎉 统一版本跨平台教程完成!")
+        print(f"已完成步骤: {len(self.steps_completed)}/8")
+        print("🌟 统一版本优势:")
+        print("  ✅ 单一源码支持多平台")
+        print("  ✅ 降低代码维护成本")
+        print("  ✅ 保证跨平台一致性")
+        print("  ✅ 便于新平台适配")
+        print("\n🚀 接下来您可以:")
+        print("1. 尝试在实际 Android 设备上部署")
+        print("2. 探索其他深度学习模型")
+        print("3. 优化模型性能和精度")
+        print("4. 集成到生产应用中")
+        print("\n感谢您完成 MNIST 统一版本跨平台部署教程！")
         
         return True
 

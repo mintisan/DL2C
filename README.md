@@ -54,7 +54,7 @@ cat results/cross_platform_report.md
 #### 基础依赖
 ```bash
 # Python环境
-pip install torch torchvision onnx onnxruntime numpy matplotlib Pillow
+pip install torch torchvision onnx onnxruntime numpy matplotlib Pillow netron
 
 # macOS工具链
 brew install cmake ninja android-ndk pkg-config openjdk@11
@@ -205,6 +205,7 @@ cd train
 python train_model.py        # 训练模型，下载数据
 python quantize_model.py     # 量化优化
 python export_onnx.py        # 导出ONNX
+netron # 查看 model 结构
 ```
 
 #### 2. 本地推理测试
