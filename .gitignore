@@ -10,7 +10,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -135,6 +134,10 @@ local.properties
 # -----------------------------------------------------------------------------
 onnxruntime-*/
 onnxruntime.*
+
+# 重要：包含预编译的ONNX Runtime库（用于跨平台部署）
+!build/onnxruntime-android-arm64-v8a/
+!build/onnxruntime-osx-arm64-1.16.0/
 
 # 推理结果文件 - 完全忽略results目录
 # -----------------------------------------------------------------------------
