@@ -6,6 +6,19 @@
 #include <assert.h>
 #include "onnxruntime_c_api.h"
 
+// 平台特定的路径配置
+#ifdef __ANDROID__
+    #define MODEL_PATH "/data/local/tmp/mnist_unified_onnx/models/mnist_model.onnx"
+    #define RESULTS_PATH "/data/local/tmp/mnist_unified_onnx/results/android_unified_c_results.txt"
+    #define TEST_DATA_DIR "/data/local/tmp/mnist_unified_onnx/test_data_mnist"
+    #define PLATFORM_NAME "Android"
+#else
+    #define MODEL_PATH "../models/mnist_model.onnx"
+    #define RESULTS_PATH "../results/macos_unified_c_results.txt"
+    #define TEST_DATA_DIR "../test_data_mnist"
+    #define PLATFORM_NAME "macOS"
+#endif
+
 // 推理上下文结构体
 typedef struct {
     const OrtApi* ort_api;
@@ -26,18 +39,16 @@ typedef struct {
     int true_label;
     int predicted_class;
     float confidence;
-    float* probabilities;
-    size_t prob_count;
     double inference_time_ms;
     int is_correct;
 } InferenceResult;
 
-// MNIST测试数据结构体
+// MNIST测试数据结构体（统一版本）
 typedef struct {
-    float** images;           // 图像数据数组
-    int* labels;             // 标签数组
-    int* original_indices;   // 原始MNIST索引数组
-    int num_samples;         // 样本数量
+    float** images;
+    int* labels;
+    int* original_indices;
+    int num_samples;
 } MNISTTestData;
 
 // 全局ORT API指针
@@ -52,6 +63,27 @@ const OrtApi* g_ort = NULL;
         return -1; \
     }
 
+// 简单的JSON解析函数
+int parse_json_int(const char* line, const char* key) {
+    char* pos = strstr(line, key);
+    if (!pos) return -1;
+    
+    pos += strlen(key);
+    while (*pos == ' ' || *pos == ':' || *pos == '"') pos++;
+    
+    char* end_pos = pos;
+    while (*end_pos && *end_pos != ',' && *end_pos != '}' && *end_pos != '"') end_pos++;
+    
+    char value_str[32];
+    size_t len = end_pos - pos;
+    if (len >= sizeof(value_str)) len = sizeof(value_str) - 1;
+    
+    strncpy(value_str, pos, len);
+    value_str[len] = '\0';
+    
+    return atoi(value_str);
+}
+
 // 初始化推理上下文
 int init_inference_context(InferenceContext* ctx, const char* model_path) {
     printf("初始化ONNX Runtime C API推理引擎...\n");
@@ -61,7 +93,7 @@ int init_inference_context(InferenceContext* ctx, const char* model_path) {
     ctx->ort_api = g_ort;
     
     // 创建环境
-    OrtStatus* status = g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "CInferenceMNIST", &ctx->env);
+    OrtStatus* status = g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "CInferenceUnified", &ctx->env);
     CHECK_STATUS(status);
     
     // 创建会话选项
@@ -110,45 +142,65 @@ int init_inference_context(InferenceContext* ctx, const char* model_path) {
         CHECK_STATUS(status);
     }
     
-    printf("✅ ONNX Runtime C API初始化成功\n");
+    printf("✓ ONNX Runtime 初始化成功\n");
+    printf("✓ 模型加载成功: %s\n", model_path);
+    
     return 0;
 }
 
-// 简单的JSON解析函数，提取整数值
-int parse_json_int(const char* line, const char* key) {
-    char* pos = strstr(line, key);
-    if (!pos) return -1;
+// 预处理函数（与原始版本保持一致）
+void preprocess_image(float* input_data, size_t data_size) {
+    // MNIST标准化参数
+    const float mean = 0.1307f;
+    const float std = 0.3081f;
     
-    pos += strlen(key);
-    while (*pos == ' ' || *pos == ':' || *pos == '"') pos++;
-    
-    char* end_pos = pos;
-    while (*end_pos && *end_pos != ',' && *end_pos != '}' && *end_pos != '"') end_pos++;
-    
-    char value_str[32];
-    size_t len = end_pos - pos;
-    if (len >= sizeof(value_str)) len = sizeof(value_str) - 1;
-    
-    strncpy(value_str, pos, len);
-    value_str[len] = '\0';
-    
-    return atoi(value_str);
+    // 标准化: (pixel - mean) / std
+    for (size_t i = 0; i < data_size; i++) {
+        input_data[i] = (input_data[i] - mean) / std;
+    }
 }
 
-// 加载MNIST测试数据
+// Softmax函数（与原始版本保持一致）
+void softmax(float* input, float* output, size_t size) {
+    // 数值稳定性：减去最大值
+    float max_val = input[0];
+    for (size_t i = 1; i < size; i++) {
+        if (input[i] > max_val) {
+            max_val = input[i];
+        }
+    }
+    
+    // 计算exp和sum
+    float sum = 0.0f;
+    for (size_t i = 0; i < size; i++) {
+        output[i] = expf(input[i] - max_val);
+        sum += output[i];
+    }
+    
+    // 归一化
+    for (size_t i = 0; i < size; i++) {
+        output[i] /= sum;
+    }
+}
+
+// 加载MNIST测试数据（使用真实数据文件，与原始版本逻辑一致）
 int load_mnist_test_data(MNISTTestData* data) {
     printf("🔍 加载MNIST测试数据...\n");
     
+    // 构造metadata文件路径
+    char metadata_path[512];
+    snprintf(metadata_path, sizeof(metadata_path), "%s/metadata.json", TEST_DATA_DIR);
+    
     // 读取元数据文件
-    FILE* metadata_file = fopen("../../test_data_mnist/metadata.json", "r");
+    FILE* metadata_file = fopen(metadata_path, "r");
     if (!metadata_file) {
-        printf("❌ 无法打开元数据文件\n");
+        printf("❌ 无法打开元数据文件: %s\n", metadata_path);
         return -1;
     }
     
     // 解析JSON获取样本信息
     char line[1024];
-    int* labels = (int*)malloc(1000 * sizeof(int));  // 预分配空间
+    int* labels = (int*)malloc(1000 * sizeof(int));
     int* indices = (int*)malloc(1000 * sizeof(int));
     int label_count = 0;
     int num_samples = 0;
@@ -194,11 +246,11 @@ int load_mnist_test_data(MNISTTestData* data) {
     data->labels = (int*)malloc(num_samples * sizeof(int));
     data->original_indices = (int*)malloc(num_samples * sizeof(int));
     
-    // 读取图像文件
+    // 读取图像文件（与原始c_inference_mnist.c一致）
     for (int i = 0; i < num_samples; i++) {
         // 构造文件名
-        char filename[256];
-        snprintf(filename, sizeof(filename), "../../test_data_mnist/image_%03d.bin", i);
+        char filename[512];
+        snprintf(filename, sizeof(filename), "%s/image_%03d.bin", TEST_DATA_DIR, i);
         
         FILE* file = fopen(filename, "rb");
         if (!file) {
@@ -241,41 +293,6 @@ int load_mnist_test_data(MNISTTestData* data) {
     free(labels);
     free(indices);
     return 0;
-}
-
-// 预处理函数
-void preprocess_image(float* input_data, size_t data_size) {
-    // MNIST标准化参数
-    const float mean = 0.1307f;
-    const float std = 0.3081f;
-    
-    // 标准化: (pixel - mean) / std
-    for (size_t i = 0; i < data_size; i++) {
-        input_data[i] = (input_data[i] - mean) / std;
-    }
-}
-
-// Softmax函数
-void softmax(float* input, float* output, size_t size) {
-    // 数值稳定性：减去最大值
-    float max_val = input[0];
-    for (size_t i = 1; i < size; i++) {
-        if (input[i] > max_val) {
-            max_val = input[i];
-        }
-    }
-    
-    // 计算exp和sum
-    float sum = 0.0f;
-    for (size_t i = 0; i < size; i++) {
-        output[i] = expf(input[i] - max_val);
-        sum += output[i];
-    }
-    
-    // 归一化
-    for (size_t i = 0; i < size; i++) {
-        output[i] /= sum;
-    }
 }
 
 // 执行推理
@@ -345,45 +362,21 @@ int run_inference(InferenceContext* ctx, int sample_id, int original_idx, int tr
         return -1;
     }
     
-    // 获取输出维度信息
-    OrtTensorTypeAndShapeInfo* output_info;
-    status = g_ort->GetTensorTypeAndShape(outputs[0], &output_info);
-    if (status != NULL) {
-        g_ort->ReleaseStatus(status);
-        g_ort->ReleaseValue(input_tensor);
-        g_ort->ReleaseValue(outputs[0]);
-        free(input_data);
-        return -1;
-    }
-    
-    size_t output_count;
-    status = g_ort->GetTensorShapeElementCount(output_info, &output_count);
-    if (status != NULL) {
-        g_ort->ReleaseStatus(status);
-        g_ort->ReleaseTensorTypeAndShapeInfo(output_info);
-        g_ort->ReleaseValue(input_tensor);
-        g_ort->ReleaseValue(outputs[0]);
-        free(input_data);
-        return -1;
-    }
-    
     // 应用softmax并找到预测类别
+    float probabilities[10];
+    softmax(output_data, probabilities, 10);
+    
+    // 找到最大概率的类别
     result->sample_id = sample_id;
     result->original_mnist_index = original_idx;
     result->true_label = true_label;
-    result->prob_count = output_count;
-    result->probabilities = (float*)malloc(output_count * sizeof(float));
-    
-    // 计算softmax
-    softmax(output_data, result->probabilities, output_count);
-    
-    // 找到最大概率的类别
     result->predicted_class = 0;
-    result->confidence = result->probabilities[0];
-    for (size_t i = 1; i < output_count; i++) {
-        if (result->probabilities[i] > result->confidence) {
-            result->confidence = result->probabilities[i];
-            result->predicted_class = (int)i;
+    result->confidence = probabilities[0];
+    
+    for (int i = 1; i < 10; i++) {
+        if (probabilities[i] > result->confidence) {
+            result->confidence = probabilities[i];
+            result->predicted_class = i;
         }
     }
     
@@ -397,7 +390,6 @@ int run_inference(InferenceContext* ctx, int sample_id, int original_idx, int tr
     // 释放资源
     g_ort->ReleaseValue(input_tensor);
     g_ort->ReleaseValue(outputs[0]);
-    g_ort->ReleaseTensorTypeAndShapeInfo(output_info);
     free(input_data);
     
     return 0;
@@ -423,65 +415,40 @@ void free_mnist_test_data(MNISTTestData* data) {
     }
 }
 
-// 释放推理结果
-void free_inference_result(InferenceResult* result) {
-    if (result->probabilities) {
-        free(result->probabilities);
-        result->probabilities = NULL;
-    }
-}
-
-// 保存结果到JSON文件
-void save_results_to_json(InferenceResult* results, size_t num_results, double avg_time, double accuracy, int wrong_count) {
-    // 创建目录
-    system("mkdir -p ../../results 2>/dev/null || mkdir ..\\..\\results 2>nul || true");
-    
-    FILE* file = fopen("../../results/c_inference_mnist_results.json", "w");
-    if (!file) {
-        printf("无法创建结果文件\n");
+// 保存结果到文件
+void save_results(InferenceResult* results, int num_samples, double total_time, int correct_predictions) {
+    FILE* file = fopen(RESULTS_PATH, "w");
+    if (file == NULL) {
+        printf("警告: 无法打开结果文件进行写入\n");
         return;
     }
     
-    fprintf(file, "{\n");
-    fprintf(file, "  \"platform\": \"C\",\n");
-    fprintf(file, "  \"framework\": \"ONNX Runtime C API\",\n");
-    fprintf(file, "  \"test_type\": \"real_mnist_data\",\n");
-    fprintf(file, "  \"data_source\": \"MNIST test set subset\",\n");
-    fprintf(file, "  \"summary\": {\n");
-    fprintf(file, "    \"accuracy\": %.4f,\n", accuracy);
-    fprintf(file, "    \"average_inference_time_ms\": %.2f,\n", avg_time);
-    fprintf(file, "    \"fps\": %.1f,\n", 1000.0 / avg_time);
-    fprintf(file, "    \"total_samples\": %zu,\n", num_results);
+    double accuracy = (double)correct_predictions / num_samples;
+    double avg_time = total_time / num_samples;
+    double fps = 1000.0 / avg_time;
     
-    int correct = 0;
-    for (size_t i = 0; i < num_results; i++) {
-        if (results[i].is_correct) correct++;
-    }
-    fprintf(file, "    \"correct_predictions\": %d,\n", correct);
-    fprintf(file, "    \"wrong_predictions\": %d\n", wrong_count);
+    fprintf(file, "%s 统一 ONNX Runtime C API 推理结果\n", PLATFORM_NAME);
+    fprintf(file, "==========================================\n");
+    fprintf(file, "平台: %s\n", PLATFORM_NAME);
+    fprintf(file, "总样本数: %d\n", num_samples);
+    fprintf(file, "正确预测: %d\n", correct_predictions);
+    fprintf(file, "准确率: %.2f%%\n", accuracy * 100);
+    fprintf(file, "平均推理时间: %.2f ms\n", avg_time);
+    fprintf(file, "推理速度: %.1f FPS\n", fps);
+    fprintf(file, "\n样本详细结果:\n");
     
-    fprintf(file, "  },\n");
-    fprintf(file, "  \"results\": [\n");
-    
-    for (size_t i = 0; i < num_results; i++) {
-        fprintf(file, "    {\n");
-        fprintf(file, "      \"sample_id\": %d,\n", results[i].sample_id);
-        fprintf(file, "      \"original_mnist_index\": %d,\n", results[i].original_mnist_index);
-        fprintf(file, "      \"true_label\": %d,\n", results[i].true_label);
-        fprintf(file, "      \"predicted_class\": %d,\n", results[i].predicted_class);
-        fprintf(file, "      \"confidence\": %.4f,\n", results[i].confidence);
-        fprintf(file, "      \"inference_time_ms\": %.2f,\n", results[i].inference_time_ms);
-        fprintf(file, "      \"is_correct\": %s\n", results[i].is_correct ? "true" : "false");
-        fprintf(file, "    }");
-        if (i < num_results - 1) fprintf(file, ",");
-        fprintf(file, "\n");
+    for (int i = 0; i < num_samples; i++) {
+        fprintf(file, "样本 %3d: 真实=%d, 预测=%d, 置信度=%.3f, 时间=%.2f ms, %s\n",
+                results[i].sample_id,
+                results[i].true_label,
+                results[i].predicted_class,
+                results[i].confidence,
+                results[i].inference_time_ms,
+                results[i].is_correct ? "正确" : "错误");
     }
     
-    fprintf(file, "  ]\n");
-    fprintf(file, "}\n");
     fclose(file);
-    
-    printf("结果已保存到: ../../results/c_inference_mnist_results.json\n");
+    printf("✓ 结果已保存到 %s\n", RESULTS_PATH);
 }
 
 // 清理推理上下文
@@ -504,7 +471,7 @@ void cleanup_inference_context(InferenceContext* ctx) {
     if (ctx->input_names && ctx->allocator) {
         for (size_t i = 0; i < ctx->num_inputs; i++) {
             if (ctx->input_names[i]) {
-                ctx->ort_api->AllocatorFree(ctx->allocator, ctx->input_names[i]);
+                (void)ctx->ort_api->AllocatorFree(ctx->allocator, ctx->input_names[i]);
             }
         }
         free(ctx->input_names);
@@ -514,7 +481,7 @@ void cleanup_inference_context(InferenceContext* ctx) {
     if (ctx->output_names && ctx->allocator) {
         for (size_t i = 0; i < ctx->num_outputs; i++) {
             if (ctx->output_names[i]) {
-                ctx->ort_api->AllocatorFree(ctx->allocator, ctx->output_names[i]);
+                (void)ctx->ort_api->AllocatorFree(ctx->allocator, ctx->output_names[i]);
             }
         }
         free(ctx->output_names);
@@ -524,18 +491,19 @@ void cleanup_inference_context(InferenceContext* ctx) {
 
 // 主函数
 int main() {
-    printf("=== C ONNX推理测试 (真实MNIST数据) ===\n");
+    printf("启动 %s 统一 ONNX Runtime C API MNIST 推理程序...\n", PLATFORM_NAME);
     
     InferenceContext ctx = {0};
-    const char* model_path = "../../models/mnist_model.onnx";
     
     // 初始化推理上下文
-    if (init_inference_context(&ctx, model_path) != 0) {
+    if (init_inference_context(&ctx, MODEL_PATH) != 0) {
         printf("初始化失败\n");
         return -1;
     }
     
-    // 加载MNIST测试数据
+    printf("\n=== 开始 %s 统一推理测试 ===\n", PLATFORM_NAME);
+    
+    // 加载MNIST测试数据（使用真实数据）
     MNISTTestData test_data = {0};
     if (load_mnist_test_data(&test_data) != 0) {
         printf("加载测试数据失败\n");
@@ -543,7 +511,7 @@ int main() {
         return -1;
     }
     
-    printf("\n开始推理 %d 个样本...\n", test_data.num_samples);
+    printf("开始推理 %d 个样本...\n", test_data.num_samples);
     
     // 分配内存存储结果
     InferenceResult* results = (InferenceResult*)malloc(test_data.num_samples * sizeof(InferenceResult));
@@ -576,7 +544,7 @@ int main() {
     double accuracy = (double)correct_predictions / test_data.num_samples;
     int wrong_count = test_data.num_samples - correct_predictions;
     
-    printf("\n=== 推理结果统计 ===\n");
+    printf("\n=== %s 推理结果统计 ===\n", PLATFORM_NAME);
     printf("总样本数: %d\n", test_data.num_samples);
     printf("正确预测: %d\n", correct_predictions);
     printf("准确率: %.2f%%\n", accuracy * 100);
@@ -589,9 +557,9 @@ int main() {
         int shown = 0;
         for (int i = 0; i < test_data.num_samples && shown < 5; i++) {
             if (!results[i].is_correct) {
-                printf("  样本 %3d: 真实=%d, 预测=%d, 置信度=%.3f\n",
+                printf("  样本 %3d: 真实=%d, 预测=%d, 置信度=%.3f, 时间=%.2f ms\n",
                        results[i].sample_id, results[i].true_label, 
-                       results[i].predicted_class, results[i].confidence);
+                       results[i].predicted_class, results[i].confidence, results[i].inference_time_ms);
                 shown++;
             }
         }
@@ -601,17 +569,14 @@ int main() {
     }
     
     // 保存结果
-    save_results_to_json(results, test_data.num_samples, avg_time, accuracy, wrong_count);
+    save_results(results, test_data.num_samples, total_time, correct_predictions);
     
     // 清理资源
-    for (int i = 0; i < test_data.num_samples; i++) {
-        free_inference_result(&results[i]);
-    }
     free(results);
     free_mnist_test_data(&test_data);
     cleanup_inference_context(&ctx);
     
-    printf("\n✅ C推理测试完成\n");
+    printf("\n✅ %s 统一推理测试完成\n", PLATFORM_NAME);
     
     return 0;
 } 
