@@ -17,9 +17,9 @@ if(ANDROID)
     set(CMAKE_ANDROID_ARCH_ABI arm64-v8a)
     
     # ONNX Runtime Android 路径配置
-    set(ONNXRUNTIME_BUILD_DIR "/Users/mintisan/Workplaces/onnxruntime/build/Android/Release")
+    set(ONNXRUNTIME_BUILD_DIR "$ENV{HOME}/Workplaces/onnxruntime/build/Android/Release")
     set(ONNXRUNTIME_ROOT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/onnxruntime-android-${ANDROID_ABI}")
-    set(ONNXRUNTIME_INCLUDE_DIR "/Users/mintisan/Workplaces/onnxruntime/include")
+    set(ONNXRUNTIME_INCLUDE_DIR "$ENV{HOME}/Workplaces/onnxruntime/include")
     set(ONNXRUNTIME_LIB_DIR "${ONNXRUNTIME_ROOT_PATH}/lib")
     
     message(STATUS "配置Android构建")

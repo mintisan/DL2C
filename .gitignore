@@ -122,6 +122,10 @@ mnist_inference_*
 !*.c
 !*.h
 
+# inference 目录下的可执行文件
+inference/cpp_inference
+inference/c_inference
+
 # Android NDK 构建产物
 # -----------------------------------------------------------------------------
 android_executables/

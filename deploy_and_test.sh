@@ -201,30 +201,30 @@ get_results() {
     
     if [[ "$TEST_TARGET" == "android" ]]; then
         # 拉取Android C++版本结果文件
-        if adb shell "test -f $DEVICE_DIR/results/android_unified_cpp_results.txt"; then
-            adb pull "$DEVICE_DIR/results/android_unified_cpp_results.txt" "$RESULTS_DIR/"
+        if adb shell "test -f $DEVICE_DIR/results/android_cpp_results.txt"; then
+            adb pull "$DEVICE_DIR/results/android_cpp_results.txt" "$RESULTS_DIR/"
             echo -e "${GREEN}✓ Android C++ 统一结果文件已下载${NC}"
         else
             echo -e "${YELLOW}警告: Android C++ 统一结果文件不存在${NC}"
         fi
         
         # 拉取Android C版本结果文件
-        if adb shell "test -f $DEVICE_DIR/results/android_unified_c_results.txt"; then
-            adb pull "$DEVICE_DIR/results/android_unified_c_results.txt" "$RESULTS_DIR/"
+        if adb shell "test -f $DEVICE_DIR/results/android_c_results.txt"; then
+            adb pull "$DEVICE_DIR/results/android_c_results.txt" "$RESULTS_DIR/"
             echo -e "${GREEN}✓ Android C 统一结果文件已下载${NC}"
         else
             echo -e "${YELLOW}警告: Android C 统一结果文件不存在${NC}"
         fi
         
         # 显示Android结果
-        if [ -f "$RESULTS_DIR/android_unified_cpp_results.txt" ]; then
+        if [ -f "$RESULTS_DIR/android_cpp_results.txt" ]; then
             echo -e "${BLUE}Android C++ 统一测试结果:${NC}"
-            cat "$RESULTS_DIR/android_unified_cpp_results.txt"
+            cat "$RESULTS_DIR/android_cpp_results.txt"
         fi
         
-        if [ -f "$RESULTS_DIR/android_unified_c_results.txt" ]; then
+        if [ -f "$RESULTS_DIR/android_c_results.txt" ]; then
             echo -e "\n${BLUE}Android C 统一测试结果:${NC}"
-            cat "$RESULTS_DIR/android_unified_c_results.txt"
+            cat "$RESULTS_DIR/android_c_results.txt"
         fi
         
     else

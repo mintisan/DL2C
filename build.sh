@@ -45,7 +45,7 @@ check_environment() {
         echo -e "${GREEN}✓ Android NDK: $ANDROID_NDK_HOME${NC}"
         
         # 检查 ONNX Runtime Android 版本
-        ONNXRUNTIME_BUILD_DIR="/Users/mintisan/Workplaces/onnxruntime/build/Android/Release"
+        ONNXRUNTIME_BUILD_DIR="$HOME/Workplaces/onnxruntime/build/Android/Release"
         if [ ! -f "$ONNXRUNTIME_BUILD_DIR/libonnxruntime_session.a" ]; then
             echo -e "${RED}错误: ONNX Runtime Android 版本未找到${NC}"
             echo "请先成功编译 ONNX Runtime Android 版本"
@@ -159,7 +159,12 @@ build_project() {
     
     # 编译
     echo -e "${BLUE}开始编译...${NC}"
-    make -j$(nproc)
+    if command -v nproc &> /dev/null; then
+        make -j$(nproc)
+    else
+        # macOS 使用 sysctl
+        make -j$(sysctl -n hw.ncpu)
+    fi
     
     if [ $? -ne 0 ]; then
         echo -e "${RED}错误: 编译失败${NC}"

@@ -57,7 +57,11 @@ cat results/cross_platform_report.md
 pip install torch torchvision onnx onnxruntime numpy matplotlib Pillow
 
 # macOS工具链
-brew install cmake ninja android-ndk openjdk@11
+brew install cmake ninja android-ndk pkg-config openjdk@11
+brew install --cask android-platform-tools  #adb
+
+# onnxruntime 运行时
+brew install onnxruntime
 ```
 
 #### Android设备
@@ -198,12 +202,15 @@ DL2C/
 #### 1. 训练阶段
 ```bash
 cd train
-python train_model.py        # 训练模型
+python train_model.py        # 训练模型，下载数据
 python quantize_model.py     # 量化优化
 python export_onnx.py        # 导出ONNX
 ```
 
 #### 2. 本地推理测试
+```bash
+python data_loader.py       # 生成推理测试数据
+```
 ```bash
 cd inference
 python python_inference.py  # Python推理基准
