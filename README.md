@@ -64,6 +64,71 @@ brew install cmake ninja android-ndk openjdk@11
 - Android设备连接并开启USB调试
 - 验证连接：`adb devices`
 
+#### ONNX Runtime Android 版本编译
+
+这是整个流程中最复杂的部分，需要从源码编译 ONNX Runtime 的 Android 版本。
+
+##### 1. 克隆 ONNX Runtime 源码
+
+```bash
+cd /Users/mintisan/Workplaces  # 或您的工作目录
+git clone --recursive https://github.com/Microsoft/onnxruntime.git
+cd onnxruntime
+```
+
+##### 2. 编译 Android 版本 (预计 30-60 分钟)
+
+```bash
+# 设置环境变量
+export ANDROID_NDK_HOME="/opt/homebrew/share/android-ndk"
+export ANDROID_SDK_ROOT="$HOME/android-sdk"
+export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"
+
+# 开始编译 (这是一个耗时的过程)
+./build.sh --android \
+  --android_abi arm64-v8a \
+  --android_api 21 \
+  --android_sdk_path $ANDROID_SDK_ROOT \
+  --android_ndk_path $ANDROID_NDK_HOME \
+  --config Release \
+  --cmake_extra_defines onnxruntime_USE_KLEIDIAI=OFF
+```
+
+##### 3. 验证编译结果
+
+```bash
+# 检查生成的库文件
+ls -la build/Android/Release/libonnxruntime_*.a
+
+# 应该看到以下文件:
+# libonnxruntime_session.a
+# libonnxruntime_providers.a  
+# libonnxruntime_framework.a
+# libonnxruntime_graph.a
+# 等等...
+```
+
+##### 4. 注意事项
+
+- **⏱️ 编译时间**: 首次编译需要30-60分钟，取决于机器性能
+- **💾 磁盘空间**: 编译过程需要约5-10GB的磁盘空间
+- **🔧 依赖工具**: 确保已安装cmake、ninja、git等工具
+- **📱 SDK配置**: Android SDK和NDK路径需要正确设置
+
+##### 5. 编译故障排除
+
+```bash
+# 如果编译失败，可以尝试清理后重新编译
+./build.sh --clean
+rm -rf build/Android
+
+# 确认环境变量设置
+echo "NDK: $ANDROID_NDK_HOME"
+echo "SDK: $ANDROID_SDK_ROOT"
+```
+
+**⚠️ 重要**: 只有成功编译ONNX Runtime Android版本后，才能运行本项目的Android测试。如果编译遇到问题，请参考[ONNX Runtime官方文档](https://onnxruntime.ai/docs/build/android.html)。
+
 ## 📁 项目结构
 
 ```
