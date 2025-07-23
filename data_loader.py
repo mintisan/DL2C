@@ -77,7 +77,7 @@ class MNISTDataLoader:
         
         return selected_images, selected_labels, indices
     
-    def save_for_inference(self, images, labels, indices, output_dir="./test_data_mnist"):
+    def save_for_inference(self, images, labels, indices, output_dir="./test_data"):
         """保存数据供三种语言推理使用"""
         output_dir = Path(output_dir)
         output_dir.mkdir(exist_ok=True)
@@ -129,7 +129,7 @@ class MNISTDataLoader:
         
         return metadata
     
-    def verify_data_consistency(self, output_dir="./test_data_mnist"):
+    def verify_data_consistency(self, output_dir="./test_data"):
         """验证保存的数据一致性"""
         print("\n🔍 验证数据一致性...")
         

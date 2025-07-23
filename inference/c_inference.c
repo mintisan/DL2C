@@ -8,14 +8,14 @@
 
 // 平台特定的路径配置
 #ifdef __ANDROID__
-    #define MODEL_PATH "/data/local/tmp/mnist_unified_onnx/models/mnist_model.onnx"
-    #define RESULTS_PATH "/data/local/tmp/mnist_unified_onnx/results/android_unified_c_results.txt"
-    #define TEST_DATA_DIR "/data/local/tmp/mnist_unified_onnx/test_data_mnist"
+    #define MODEL_PATH "/data/local/tmp/mnist_onnx/models/mnist_model.onnx"
+    #define RESULTS_PATH "/data/local/tmp/mnist_onnx/results/android_c_results.txt"
+    #define TEST_DATA_DIR "/data/local/tmp/mnist_onnx/test_data"
     #define PLATFORM_NAME "Android"
 #else
     #define MODEL_PATH "../models/mnist_model.onnx"
-    #define RESULTS_PATH "../results/macos_unified_c_results.txt"
-    #define TEST_DATA_DIR "../test_data_mnist"
+    #define RESULTS_PATH "../results/macos_c_results.txt"
+    #define TEST_DATA_DIR "../test_data"
     #define PLATFORM_NAME "macOS"
 #endif
 

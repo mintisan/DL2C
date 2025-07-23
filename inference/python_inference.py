@@ -87,7 +87,7 @@ class PythonONNXInferenceMNIST:
 
 def load_mnist_test_data():
     """加载MNIST测试数据"""
-    test_data_dir = Path("../test_data_mnist")
+    test_data_dir = Path("../test_data")
     npz_file = test_data_dir / "mnist_test_subset.npz"
     
     if not npz_file.exists():
@@ -202,10 +202,10 @@ def test_python_inference_mnist():
     # 确保results目录存在
     os.makedirs('../results', exist_ok=True)
     
-    with open('../results/python_inference_mnist_results.json', 'w', encoding='utf-8') as f:
+    with open('../results/python_inference_results.json', 'w', encoding='utf-8') as f:
         json.dump(summary_result, f, indent=2, ensure_ascii=False)
     
-    print("结果已保存到: ../results/python_inference_mnist_results.json")
+    print("结果已保存到: ../results/python_inference_results.json")
     
     return summary_result
 

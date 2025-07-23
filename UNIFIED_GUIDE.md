@@ -8,12 +8,12 @@
 
 ### 🔧 核心文件
 
-- **`inference/c_inference_unified.c`** - 统一的C语言推理代码
-- **`inference/cpp_inference_unified.cpp`** - 统一的C++推理代码
-- **`build/CMakeLists_unified.txt`** - 统一的CMake配置文件
-- **`build/build_unified.sh`** - 统一的编译脚本
-- **`build/deploy_and_test_unified.sh`** - 统一的部署测试脚本
-- **`run_all_platforms_unified.sh`** - 全平台自动化测试脚本
+- **`inference/c_inference.c`** - 统一的C语言推理代码
+- **`inference/cpp_inference.cpp`** - 统一的C++推理代码
+- **`build/CMakeLists.txt`** - 统一的CMake配置文件
+- **`build/build.sh`** - 统一的编译脚本
+- **`build/deploy_and_test.sh`** - 统一的部署测试脚本
+- **`run_all_platforms.sh`** - 全平台自动化测试脚本
 
 ## 🚀 快速开始
 
@@ -23,7 +23,7 @@
 
 ```bash
 # 在项目根目录执行
-./run_all_platforms_unified.sh
+./run_all_platforms.sh
 ```
 
 这将自动完成：
@@ -44,20 +44,20 @@
 cd build
 
 # 编译macOS版本
-./build_unified.sh macos
+./build.sh macos
 
 # 编译Android版本（需要连接Android设备）
-./build_unified.sh android
+./build.sh android
 ```
 
 #### Step 2: 运行测试
 
 ```bash
 # 测试macOS版本
-./deploy_and_test_unified.sh macos
+./deploy_and_test.sh macos
 
 # 测试Android版本（需要连接Android设备）
-./deploy_and_test_unified.sh android
+./deploy_and_test.sh android
 ```
 
 ## 🔧 环境要求
@@ -211,10 +211,10 @@ int load_mnist_test_data(MNISTTestData* test_data);
 
 ```bash
 # 编译时启用调试模式
-./build_unified.sh android --verbose
+./build.sh android --verbose
 
 # 运行时查看详细日志
-./deploy_and_test_unified.sh android --debug
+./deploy_and_test.sh android --debug
 ```
 
 ## 📚 相关文档

@@ -112,8 +112,8 @@ cd ..
 print_step "生成测试数据"
 echo "生成真实MNIST测试数据..."
 
-if [ ! -d "test_data_mnist" ] || [ ! -f "test_data_mnist/metadata.json" ]; then
-    python mnist_data_loader.py
+if [ ! -d "test_data" ] || [ ! -f "test_data/metadata.json" ]; then
+    python data_loader.py
     if [ $? -ne 0 ]; then
         print_error "测试数据生成失败"
         exit 1
@@ -127,7 +127,7 @@ print_step "本地推理测试 (1/5) - Python版本"
 echo "运行Python MNIST推理..."
 
 cd inference
-python python_inference_mnist.py
+python python_inference.py
 if [ $? -eq 0 ]; then
     print_success "Python推理测试完成"
 else
@@ -140,7 +140,7 @@ echo "编译统一版本macOS推理程序..."
 
 if [ "$SKIP_MACOS_BUILD" = false ]; then
     cd build
-    ./build_unified.sh macos
+    ./build.sh macos
     if [ $? -eq 0 ]; then
         print_success "统一版本macOS编译完成"
     else
@@ -157,7 +157,7 @@ echo "运行统一版本macOS推理测试..."
 
 if [ "$SKIP_MACOS_BUILD" = false ]; then
     cd build
-    ./deploy_and_test_unified.sh macos
+    ./deploy_and_test.sh macos
     if [ $? -eq 0 ]; then
         print_success "统一版本macOS推理测试完成"
     else
@@ -176,7 +176,7 @@ if [ "$SKIP_ANDROID" = false ]; then
     export ANDROID_NDK_HOME="$ANDROID_NDK_HOME"
     export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"
     
-    ./build_unified.sh android
+    ./build.sh android
     if [ $? -eq 0 ]; then
         print_success "统一版本Android编译完成"
     else
@@ -193,7 +193,7 @@ echo "部署并运行统一版本Android推理测试..."
 
 if [ "$SKIP_ANDROID" = false ]; then
     cd build
-    ./deploy_and_test_unified.sh android
+    ./deploy_and_test.sh android
     if [ $? -eq 0 ]; then
         print_success "统一版本Android推理测试完成"
     else
@@ -208,7 +208,7 @@ print_step "统一版本跨平台性能分析"
 echo "生成全面的统一版本性能对比报告..."
 
 # 创建统一版本性能分析脚本
-cat > unified_performance_analysis.py << 'EOF'
+cat > performance_analysis.py << 'EOF'
 #!/usr/bin/env python3
 """
 统一版本跨平台性能分析脚本
@@ -259,16 +259,16 @@ def load_result_file(file_path):
         
         return result
 
-def generate_unified_analysis():
+def generate_analysis():
     """生成统一版本分析报告"""
     
     # 结果文件路径
     result_files = {
-        'Python': 'results/python_inference_mnist_results.json',
-        'macOS C++': 'results/macos_unified_cpp_results.txt',
-        'macOS C': 'results/macos_unified_c_results.txt',
-        'Android C++': 'results/android_unified_cpp_results.txt',
-        'Android C': 'results/android_unified_c_results.txt'
+        'Python': 'results/python_inference_results.json',
+        'macOS C++': 'results/macos_cpp_results.txt',
+        'macOS C': 'results/macos_c_results.txt',
+        'Android C++': 'results/android_cpp_results.txt',
+        'Android C': 'results/android_c_results.txt'
     }
     
     # 加载结果
@@ -286,12 +286,12 @@ def generate_unified_analysis():
         return
     
     # 生成可视化图表
-    generate_unified_plots(results)
+    generate_plots(results)
     
     # 生成文字报告
-    generate_unified_report(results)
+    generate_report(results)
 
-def generate_unified_plots(results):
+def generate_plots(results):
     """生成统一版本可视化图表"""
     
     plt.style.use('default')
@@ -406,12 +406,12 @@ def generate_unified_plots(results):
         ax.tick_params(axis='x', rotation=45)
     
     # 保存图表
-    plt.savefig('results/unified_cross_platform_analysis.png', dpi=300, bbox_inches='tight')
+    plt.savefig('results/cross_platform_analysis.png', dpi=300, bbox_inches='tight')
     plt.close()
     
-    print("✓ 统一版本可视化图表已生成: results/unified_cross_platform_analysis.png")
+    print("✓ 统一版本可视化图表已生成: results/cross_platform_analysis.png")
 
-def generate_unified_report(results):
+def generate_report(results):
     """生成统一版本文字报告"""
     
     report_file = 'results/unified_cross_platform_report.md'
@@ -506,10 +506,10 @@ def generate_unified_report(results):
     print(f"✓ 统一版本分析报告已生成: {report_file}")
 
 if __name__ == "__main__":
-    generate_unified_analysis()
+    generate_analysis()
 EOF
 
-python unified_performance_analysis.py
+python performance_analysis.py
 if [ $? -eq 0 ]; then
     print_success "统一版本性能分析完成"
 else
@@ -527,27 +527,27 @@ TOTAL_CONFIGS=0
 
 echo "📊 统一版本测试结果汇总:"
 
-if [ -f "$RESULTS_DIR/python_inference_mnist_results.json" ]; then
+if [ -f "$RESULTS_DIR/python_inference_results.json" ]; then
     echo "  ✓ Python版本结果"
     ((TOTAL_CONFIGS++))
 fi
 
-if [ -f "$RESULTS_DIR/macos_unified_cpp_results.txt" ]; then
+if [ -f "$RESULTS_DIR/macos_cpp_results.txt" ]; then
     echo "  ✓ macOS C++ 统一版本结果"
     ((TOTAL_CONFIGS++))
 fi
 
-if [ -f "$RESULTS_DIR/macos_unified_c_results.txt" ]; then
+if [ -f "$RESULTS_DIR/macos_c_results.txt" ]; then
     echo "  ✓ macOS C 统一版本结果"
     ((TOTAL_CONFIGS++))
 fi
 
-if [ -f "$RESULTS_DIR/android_unified_cpp_results.txt" ]; then
+if [ -f "$RESULTS_DIR/android_cpp_results.txt" ]; then
     echo "  ✓ Android C++ 统一版本结果"
     ((TOTAL_CONFIGS++))
 fi
 
-if [ -f "$RESULTS_DIR/android_unified_c_results.txt" ]; then
+if [ -f "$RESULTS_DIR/android_c_results.txt" ]; then
     echo "  ✓ Android C 统一版本结果"
     ((TOTAL_CONFIGS++))
 fi
@@ -559,10 +559,10 @@ if [ -f "$RESULTS_DIR/unified_cross_platform_report.md" ]; then
     echo "📋 统一版本详细报告: $RESULTS_DIR/unified_cross_platform_report.md"
 fi
 
-if [ -f "$RESULTS_DIR/unified_cross_platform_analysis.png" ]; then
-    echo "📊 统一版本可视化图表: $RESULTS_DIR/unified_cross_platform_analysis.png"
+if [ -f "$RESULTS_DIR/cross_platform_analysis.png" ]; then
+    echo "📊 统一版本可视化图表: $RESULTS_DIR/cross_platform_analysis.png"
     echo ""
-    echo "🖼️  查看图表 (macOS): open $RESULTS_DIR/unified_cross_platform_analysis.png"
+    echo "🖼️  查看图表 (macOS): open $RESULTS_DIR/cross_platform_analysis.png"
 fi
 
 if [ -f "$RESULTS_DIR/unified_deployment_report.md" ]; then
@@ -571,10 +571,10 @@ fi
 
 echo ""
 echo "💡 如需重新运行特定测试:"
-echo "   - Python: python inference/python_inference_mnist.py"
-echo "   - macOS 统一版本: cd build && ./deploy_and_test_unified.sh macos"
-echo "   - Android 统一版本: cd build && ./deploy_and_test_unified.sh android"
-echo "   - 性能分析: python unified_performance_analysis.py"
+echo "   - Python: python inference/python_inference.py"
+echo "   - macOS 统一版本: cd build && ./deploy_and_test.sh macos"
+echo "   - Android 统一版本: cd build && ./deploy_and_test.sh android"
+echo "   - 性能分析: python performance_analysis.py"
 echo ""
 
 # 显示统一版本优势
@@ -588,4 +588,4 @@ echo ""
 print_success "统一版本跨平台MNIST推理测试流程完成！"
 
 # 清理临时文件
-rm -f unified_performance_analysis.py 
+rm -f performance_analysis.py 
