@@ -224,7 +224,7 @@ consistency_test_results.json
 
 # 如果有自动生成的文档
 docs/_build/
-
+android_libs_v*/
 # =============================================================================
 # 如果需要包含特定的被忽略文件，使用 ! 前缀
 # 例如：!models/example_model.onnx
