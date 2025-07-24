@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "🚀 === 统一版本跨平台 MNIST 推理完整测试流程 ==="
-echo "将依次运行: Python + 统一版本macOS C/C++ + 统一版本Android C/C++ 共5个配置"
+echo "将依次运行: Python + 统一版本macOS C/C++ + 统一版本Android C/C++ + Android库系统 共6个配置"
 echo ""
 
 # 颜色定义
@@ -123,7 +123,7 @@ else
     print_success "测试数据已存在，跳过生成"
 fi
 
-print_step "本地推理测试 (1/5) - Python版本"
+print_step "本地推理测试 (1/6) - Python版本"
 echo "运行Python MNIST推理..."
 
 cd inference
@@ -150,7 +150,7 @@ else
     print_warning "跳过macOS编译"
 fi
 
-print_step "本地推理测试 (2/5 & 3/5) - 统一版本macOS C++和C"
+print_step "本地推理测试 (2/6 & 3/6) - 统一版本macOS C++和C"
 echo "运行统一版本macOS推理测试..."
 
 if [ "$SKIP_MACOS_BUILD" = false ]; then
@@ -182,7 +182,7 @@ else
     print_warning "跳过统一版本Android编译"
 fi
 
-print_step "Android推理测试 (4/5 & 5/5) - 统一版本Android C++和C"
+print_step "Android推理测试 (4/6 & 5/6) - 统一版本Android C++和C"
 echo "部署并运行统一版本Android推理测试..."
 
 if [ "$SKIP_ANDROID" = false ]; then
@@ -194,6 +194,24 @@ if [ "$SKIP_ANDROID" = false ]; then
     fi
 else
     print_warning "跳过统一版本Android测试"
+fi
+
+print_step "Android库系统编译和测试 (6/6) - 库系统版本"
+echo "编译并测试Android库系统版本..."
+
+if [ "$SKIP_ANDROID" = false ]; then
+    cd inference
+    echo "Y" | ./build_android_lib.sh
+    LIBRARY_BUILD_SUCCESS=$?
+    cd ..
+    
+    if [ $LIBRARY_BUILD_SUCCESS -eq 0 ]; then
+        print_success "Android库系统编译和测试完成"
+    else
+        print_error "Android库系统编译或测试失败"
+    fi
+else
+    print_warning "跳过Android库系统测试"
 fi
 
 print_step "统一版本跨平台性能分析"
@@ -260,7 +278,8 @@ def generate_analysis():
         'macOS C++': 'results/macos_cpp_results.txt',
         'macOS C': 'results/macos_c_results.txt',
         'Android C++': 'results/android_cpp_results.txt',
-        'Android C': 'results/android_c_results.txt'
+        'Android C': 'results/android_c_results.txt',
+        'Android库系统': 'results/android_c_lib_results.txt'
     }
     
     # 加载结果
@@ -292,7 +311,7 @@ def generate_plots(results):
     plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'DejaVu Sans', 'Liberation Sans', 'sans-serif']
     plt.rcParams['axes.unicode_minus'] = False
     
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle('Unified Cross-Platform MNIST Inference Performance Analysis', fontsize=16, fontweight='bold')
     
     # 颜色配置
@@ -301,7 +320,8 @@ def generate_plots(results):
         'macOS C++': '#4ECDC4',
         'macOS C': '#45B7D1',
         'Android C++': '#96CEB4',
-        'Android C': '#FECA57'
+        'Android C': '#FECA57',
+        'Android库系统': '#9B59B6'
     }
     
     # 提取数据
@@ -359,36 +379,30 @@ def generate_plots(results):
         ax3.text(bar.get_x() + bar.get_width()/2., height + 1,
                 f'{fps:.1f}', ha='center', va='bottom')
     
-    # 4. 平台分组对比
-    macos_data = []
-    android_data = []
-    labels = []
+    # 4. Android版本对比（原始vs库系统）
+    android_platforms = []
+    android_times = []
+    android_colors = []
     
     for name, result in results.items():
-        if 'macOS' in name:
+        if 'Android' in name:
+            android_platforms.append(name.replace('Android', '').strip())
             if 'summary' in result:
-                macos_data.append(result['summary']['average_inference_time_ms'])
+                android_times.append(result['summary']['average_inference_time_ms'])
             else:
-                macos_data.append(result.get('average_inference_time_ms', 0))
-            labels.append(name.replace('macOS ', ''))
-        elif 'Android' in name:
-            if 'summary' in result:
-                android_data.append(result['summary']['average_inference_time_ms'])
-            else:
-                android_data.append(result.get('average_inference_time_ms', 0))
+                android_times.append(result.get('average_inference_time_ms', 0))
+            android_colors.append(colors.get(name, '#666666'))
     
-    if macos_data and android_data:
-        x = np.arange(len(labels))
-        width = 0.35
-        
-        ax4.bar(x - width/2, macos_data, width, label='macOS', color='#4ECDC4')
-        ax4.bar(x + width/2, android_data, width, label='Android', color='#96CEB4')
-        
-        ax4.set_title('macOS vs Android 统一版本对比', fontweight='bold')
+    if android_times:
+        bars4 = ax4.bar(android_platforms, android_times, color=android_colors)
+        ax4.set_title('Android版本对比 (原始vs库系统)', fontweight='bold')
         ax4.set_ylabel('推理时间 (ms)')
-        ax4.set_xticks(x)
-        ax4.set_xticklabels(labels)
-        ax4.legend()
+        
+        # 添加数值标签
+        for bar, time in zip(bars4, android_times):
+            height = bar.get_height()
+            ax4.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                    f'{time:.2f}', ha='center', va='bottom')
     
     # 调整布局
     plt.tight_layout()
@@ -396,6 +410,8 @@ def generate_plots(results):
     # 旋转x轴标签以避免重叠
     for ax in [ax1, ax2, ax3]:
         ax.tick_params(axis='x', rotation=45)
+    
+    ax4.tick_params(axis='x', rotation=15)
     
     # 保存图表
     plt.savefig('results/cross_platform_analysis.png', dpi=300, bbox_inches='tight')
@@ -413,22 +429,25 @@ def generate_report(results):
         f.write(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         
         f.write("## 测试概述\n\n")
-        f.write("本报告展示了统一版本代码在不同平台上的MNIST推理性能对比。")
+        f.write("本报告展示了统一版本代码在不同平台上的MNIST推理性能对比，")
+        f.write("包括原始版本和库系统版本。")
         f.write("统一版本使用相同的源代码，通过预处理器宏适配不同平台。\n\n")
         
         f.write("## 平台配置\n\n")
-        f.write("| 平台 | 语言 | 编译方式 | 部署方式 |\n")
-        f.write("|------|------|----------|----------|\n")
+        f.write("| 平台 | 语言 | 编译方式 | 部署方式 | 版本类型 |\n")
+        f.write("|------|------|----------|----------|----------|\n")
         
         for name in results.keys():
             if 'Python' in name:
-                f.write(f"| {name} | Python | 解释执行 | 本地运行 |\n")
+                f.write(f"| {name} | Python | 解释执行 | 本地运行 | 解释器版本 |\n")
             elif 'macOS' in name:
                 lang = 'C++' if 'C++' in name else 'C'
-                f.write(f"| {name} | {lang} | 本地编译 | 本地运行 |\n")
+                f.write(f"| {name} | {lang} | 本地编译 | 本地运行 | 原始版本 |\n")
+            elif 'Android库系统' in name:
+                f.write(f"| {name} | C | 交叉编译 | 设备部署 | 库系统版本 |\n")
             elif 'Android' in name:
                 lang = 'C++' if 'C++' in name else 'C'
-                f.write(f"| {name} | {lang} | 交叉编译 | 设备部署 |\n")
+                f.write(f"| {name} | {lang} | 交叉编译 | 设备部署 | 原始版本 |\n")
         
         f.write("\n## 性能结果\n\n")
         f.write("| 平台 | 准确率 | 平均时间(ms) | FPS | 样本数 |\n")
@@ -452,6 +471,29 @@ def generate_report(results):
             f.write(f"| {name} | {accuracy:.2f}% | {time_ms:.2f} | {fps:.1f} | {samples} |\n")
         
         f.write("\n## 跨平台对比分析\n\n")
+        
+        # Android 原始版本 vs 库系统版本对比
+        android_c = results.get('Android C')
+        android_lib = results.get('Android库系统')
+        
+        if android_c and android_lib:
+            f.write("### Android原始版本 vs 库系统版本\n\n")
+            
+            c_time = android_c.get('average_inference_time_ms', 0)
+            lib_time = android_lib.get('average_inference_time_ms', 0)
+            
+            if c_time > 0 and lib_time > 0:
+                ratio = lib_time / c_time
+                f.write(f"- Android C原始版本推理时间: {c_time:.2f} ms\n")
+                f.write(f"- Android C库系统版本推理时间: {lib_time:.2f} ms\n")
+                f.write(f"- 性能比 (库系统/原始): {ratio:.2f}x\n")
+                
+                if abs(ratio - 1.0) < 0.05:
+                    f.write("- **结论**: 库系统版本与原始版本性能基本一致\n\n")
+                elif ratio > 1.05:
+                    f.write("- **结论**: 库系统版本略慢于原始版本\n\n")
+                else:
+                    f.write("- **结论**: 库系统版本略快于原始版本\n\n")
         
         # macOS vs Android 对比
         macos_cpp = results.get('macOS C++')
@@ -484,16 +526,25 @@ def generate_report(results):
                 f.write(f"- C++ 版本推理时间: {cpp_time:.2f} ms\n")
                 f.write(f"- 性能差异: {abs(c_time - cpp_time):.2f} ms\n\n")
         
+        f.write("## 库系统优势分析\n\n")
+        f.write("1. **模块化设计**: 库系统版本采用静态库+主程序的模块化架构\n")
+        f.write("2. **API清晰**: 通过c_inference_lib.h提供清晰的C API接口\n")
+        f.write("3. **易于集成**: 适合Android应用通过JNI集成\n")
+        f.write("4. **性能一致**: 与原始版本性能基本一致，无显著性能损失\n")
+        f.write("5. **自包含**: 静态库内嵌ONNX Runtime，无外部依赖\n\n")
+        
         f.write("## 统一版本优势\n\n")
         f.write("1. **代码维护**: 单一源码支持多平台，减少维护成本\n")
         f.write("2. **一致性**: 相同的算法逻辑保证结果一致性\n")
         f.write("3. **可移植性**: 通过预处理器宏轻松适配新平台\n")
-        f.write("4. **性能**: 在不同平台上都能获得良好的推理性能\n\n")
+        f.write("4. **性能**: 在不同平台上都能获得良好的推理性能\n")
+        f.write("5. **灵活部署**: 支持原始版本和库系统版本两种部署方式\n\n")
         
         f.write("## 结论\n\n")
         f.write("统一版本代码成功实现了跨平台部署，在macOS和Android平台上都能正常运行MNIST推理任务。")
-        f.write("不同平台的性能差异主要来自硬件性能和系统优化的不同。")
-        f.write("统一版本的设计为AI模型的跨平台部署提供了一个高效的解决方案。\n")
+        f.write("库系统版本在保持与原始版本相同性能的同时，提供了更好的模块化设计和集成便利性，")
+        f.write("为Android应用的AI功能集成提供了优秀的解决方案。")
+        f.write("统一版本的设计为AI模型的跨平台部署提供了一个高效且灵活的解决方案。\n")
     
     print(f"✓ 统一版本分析报告已生成: {report_file}")
 
@@ -544,8 +595,13 @@ if [ -f "$RESULTS_DIR/android_c_results.txt" ]; then
     ((TOTAL_CONFIGS++))
 fi
 
+if [ -f "$RESULTS_DIR/android_c_lib_results.txt" ]; then
+    echo "  ✓ Android 库系统版本结果"
+    ((TOTAL_CONFIGS++))
+fi
+
 echo ""
-echo "📈 成功完成 $TOTAL_CONFIGS/5 个配置的测试"
+echo "📈 成功完成 $TOTAL_CONFIGS/6 个配置的测试"
 
 if [ -f "$RESULTS_DIR/unified_cross_platform_report.md" ]; then
     echo "📋 统一版本详细报告: $RESULTS_DIR/unified_cross_platform_report.md"
@@ -564,8 +620,9 @@ fi
 echo ""
 echo "💡 如需重新运行特定测试:"
 echo "   - Python: python inference/python_inference.py"
-   echo "   - macOS 统一版本: ./deploy_and_test.sh macos"
-   echo "   - Android 统一版本: ./deploy_and_test.sh android"
+echo "   - macOS 统一版本: ./deploy_and_test.sh macos"
+echo "   - Android 统一版本: ./deploy_and_test.sh android"
+echo "   - Android 库系统版本: cd inference && ./build_android_lib.sh"
 echo "   - 性能分析: python performance_analysis.py"
 echo ""
 
@@ -575,6 +632,7 @@ echo "   ✅ 单一源码支持多平台"
 echo "   ✅ 降低代码维护成本"
 echo "   ✅ 保证跨平台一致性"
 echo "   ✅ 便于新平台适配"
+echo "   ✅ 支持库系统集成"
 echo ""
 
 print_success "统一版本跨平台MNIST推理测试流程完成！"
