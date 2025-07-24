@@ -24,6 +24,54 @@ typedef struct InferenceContext {
 // 全局ORT API指针
 static const OrtApi* g_ort = NULL;
 
+// === 版本信息定义 ===
+#define LIBRARY_VERSION_MAJOR 1
+#define LIBRARY_VERSION_MINOR 0
+#define LIBRARY_VERSION_PATCH 0
+
+// 月份名称到数字的映射
+static const char* month_names[] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+// 获取月份数字
+static int get_month_number(const char* month_str) {
+    for (int i = 0; i < 12; i++) {
+        if (strncmp(month_str, month_names[i], 3) == 0) {
+            return i + 1;
+        }
+    }
+    return 1; // 默认返回1月
+}
+
+// 生成格式化版本号
+static void generate_version_string(char* buffer, size_t buffer_size) {
+    // __DATE__ 格式: "Jul 24 2024"
+    // __TIME__ 格式: "12:30:45"
+    
+    char month_str[4];
+    int day, year;
+    int hour, minute, second;
+    
+    // 解析日期
+    sscanf(__DATE__, "%3s %d %d", month_str, &day, &year);
+    int month = get_month_number(month_str);
+    
+    // 解析时间
+    sscanf(__TIME__, "%d:%d:%d", &hour, &minute, &second);
+    
+    // 格式化版本字符串: v1.0.0-年-月-日-时-分-秒
+    snprintf(buffer, buffer_size, "v%d.%d.%d-%04d-%02d-%02d-%02d-%02d-%02d",
+             LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR, LIBRARY_VERSION_PATCH,
+             year, month, day, hour, minute, second);
+}
+
+// 生成构建时间戳
+static void generate_build_timestamp(char* buffer, size_t buffer_size) {
+    snprintf(buffer, buffer_size, "%s %s", __DATE__, __TIME__);
+}
+
 // 错误处理宏
 #define CHECK_STATUS_RETURN(status, retval) \
     if (status != NULL) { \
@@ -562,4 +610,37 @@ void inference_print_statistics(InferenceResult* results, int num_samples,
             printf("  ... 还有 %d 个错误样本\n", wrong_count - 5);
         }
     }
+}
+
+// === 版本信息API实现 ===
+
+const char* inference_get_version(void) {
+    static char version_string[64] = {0};
+    
+    // 只在第一次调用时生成版本字符串
+    if (version_string[0] == '\0') {
+        generate_version_string(version_string, sizeof(version_string));
+    }
+    
+    return version_string;
+}
+
+const char* inference_get_build_timestamp(void) {
+    static char build_timestamp[32] = {0};
+    
+    // 只在第一次调用时生成构建时间戳
+    if (build_timestamp[0] == '\0') {
+        generate_build_timestamp(build_timestamp, sizeof(build_timestamp));
+    }
+    
+    return build_timestamp;
+}
+
+void inference_print_version_info(void) {
+    printf("=== C推理库版本信息 ===\n");
+    printf("版本号: %s\n", inference_get_version());
+    printf("构建时间: %s\n", inference_get_build_timestamp());
+    printf("ONNX Runtime C API 集成\n");
+    printf("支持平台: Android ARM64\n");
+    printf("========================\n");
 } 

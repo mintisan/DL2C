@@ -27,6 +27,25 @@ typedef struct {
 // 推理引擎句柄（不透明指针）
 typedef struct InferenceContext* InferenceHandle;
 
+// === 版本信息API ===
+
+/**
+ * 获取库版本号
+ * @return 版本字符串，格式：v1.0.0-年-月-日-时-分-秒
+ */
+const char* inference_get_version(void);
+
+/**
+ * 获取库构建时间戳
+ * @return 构建时间戳字符串
+ */
+const char* inference_get_build_timestamp(void);
+
+/**
+ * 打印库版本信息
+ */
+void inference_print_version_info(void);
+
 // === 核心API接口 ===
 
 /**

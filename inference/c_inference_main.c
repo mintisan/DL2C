@@ -19,6 +19,10 @@
 int main() {
     printf("启动 %s 统一 ONNX Runtime C库 MNIST 推理程序...\n", PLATFORM_NAME);
     
+    // 显示库版本信息
+    inference_print_version_info();
+    printf("\n");
+    
     // 创建推理引擎
     InferenceHandle inference_handle = inference_create(MODEL_PATH);
     if (!inference_handle) {
