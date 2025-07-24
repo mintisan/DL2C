@@ -600,11 +600,13 @@ test_on_device() {
     if [[ $? -eq 0 ]]; then
         print_success "Android库集成测试成功！"
         
-        # 下载结果文件
-        adb pull "$DEVICE_DIR/results/android_c_lib_results.txt" "../results/" 2>/dev/null || true
+        # 下载结果文件 (c_lib_inference实际生成的是android_c_results.txt)
+        adb pull "$DEVICE_DIR/results/android_c_results.txt" "../results/" 2>/dev/null || true
         
-        if [[ -f "../results/android_c_lib_results.txt" ]]; then
-            print_success "结果文件已下载到 ../results/android_c_lib_results.txt"
+        # 复制为android_c_lib_results.txt用于统一性能分析
+        if [[ -f "../results/android_c_results.txt" ]]; then
+            cp "../results/android_c_results.txt" "../results/android_c_lib_results.txt"
+            print_success "结果文件已下载并复制到 ../results/android_c_lib_results.txt"
         fi
         
     else

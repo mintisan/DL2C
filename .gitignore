@@ -216,6 +216,8 @@ tramp
 config.json
 settings.json
 *.config
+*.zip
+*.7z
 
 # 大型测试结果文件
 consistency_test_results.json
