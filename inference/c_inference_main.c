@@ -23,8 +23,8 @@ int main() {
     inference_print_version_info();
     printf("\n");
     
-    // 创建推理引擎
-    InferenceHandle inference_handle = inference_create(MODEL_PATH);
+    // 创建推理引擎（使用嵌入式模型）
+    InferenceHandle inference_handle = inference_create();
     if (!inference_handle) {
         printf("❌ 推理引擎初始化失败\n");
         return -1;

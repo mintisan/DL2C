@@ -6,6 +6,7 @@
 #include <time.h>
 #include <assert.h>
 #include "onnxruntime_c_api.h"
+#include "embedded_model.h"  // 嵌入式模型数据
 
 // 推理上下文结构体（完整定义）
 typedef struct InferenceContext {
@@ -139,13 +140,8 @@ static void softmax(float* input, float* output, size_t size) {
 
 // === 公开API实现 ===
 
-InferenceHandle inference_create(const char* model_path) {
-    if (!model_path) {
-        printf("错误: 模型路径为空\n");
-        return NULL;
-    }
-    
-    printf("初始化ONNX Runtime C API推理引擎...\n");
+InferenceHandle inference_create(void) {
+    printf("初始化ONNX Runtime C API推理引擎（使用嵌入式模型）...\n");
     
     // 分配推理上下文
     InferenceContext* ctx = (InferenceContext*)calloc(1, sizeof(InferenceContext));
@@ -154,9 +150,9 @@ InferenceHandle inference_create(const char* model_path) {
         return NULL;
     }
     
-    // 复制模型路径
-    ctx->model_path = (char*)malloc(strlen(model_path) + 1);
-    strcpy(ctx->model_path, model_path);
+    // 设置模型路径为内嵌模型标识
+    ctx->model_path = (char*)malloc(32);
+    strcpy(ctx->model_path, "embedded_mnist_model");
     
     // 获取ORT API
     g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
@@ -177,8 +173,10 @@ InferenceHandle inference_create(const char* model_path) {
     status = g_ort->SetSessionGraphOptimizationLevel(session_options, ORT_ENABLE_EXTENDED);
     CHECK_STATUS_RETURN(status, NULL);
     
-    // 创建会话
-    status = g_ort->CreateSession(ctx->env, model_path, session_options, &ctx->session);
+    // 创建会话 - 使用嵌入式模型数据
+    const unsigned char* model_data = get_embedded_model_data();
+    size_t model_size = get_embedded_model_size();
+    status = g_ort->CreateSessionFromArray(ctx->env, model_data, model_size, session_options, &ctx->session);
     CHECK_STATUS_RETURN(status, NULL);
     
     g_ort->ReleaseSessionOptions(session_options);
@@ -213,7 +211,7 @@ InferenceHandle inference_create(const char* model_path) {
     }
     
     printf("✓ ONNX Runtime 初始化成功\n");
-    printf("✓ 模型加载成功: %s\n", model_path);
+    printf("✓ 嵌入式模型加载成功: %s (大小: %zu bytes)\n", ctx->model_path, get_embedded_model_size());
     
     return (InferenceHandle)ctx;
 }

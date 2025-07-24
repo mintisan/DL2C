@@ -49,11 +49,10 @@ void inference_print_version_info(void);
 // === 核心API接口 ===
 
 /**
- * 初始化推理引擎
- * @param model_path ONNX模型文件路径
+ * 初始化推理引擎（使用嵌入式模型）
  * @return 推理引擎句柄，失败返回NULL
  */
-InferenceHandle inference_create(const char* model_path);
+InferenceHandle inference_create(void);
 
 /**
  * 销毁推理引擎

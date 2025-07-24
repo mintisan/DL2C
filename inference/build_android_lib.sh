@@ -128,11 +128,30 @@ compile_android_lib() {
     rm -rf build_android
     mkdir -p build_android/temp
     
+    print_info "生成嵌入式ONNX模型数据..."
+    if [[ ! -f embedded_model.c ]] || [[ ../models/mnist_model.onnx -nt embedded_model.c ]]; then
+        python3 onnx_to_c_array.py ../models/mnist_model.onnx embedded_model.c mnist_model_data
+        if [[ $? -ne 0 ]]; then
+            print_error "嵌入式模型生成失败"
+            exit 1
+        fi
+    else
+        print_info "嵌入式模型数据已是最新"
+    fi
+    
     print_info "编译我们的API库目标文件..."
     $CC $CFLAGS -c c_inference_lib.c -o build_android/c_inference_lib.o
     
     if [[ $? -ne 0 ]]; then
         print_error "API库编译失败"
+        exit 1
+    fi
+    
+    print_info "编译嵌入式模型数据..."
+    $CC $CFLAGS -c embedded_model.c -o build_android/embedded_model.o
+    
+    if [[ $? -ne 0 ]]; then
+        print_error "嵌入式模型编译失败"
         exit 1
     fi
     
@@ -211,7 +230,11 @@ compile_android_lib() {
     cp ../c_inference_lib.o .
     print_info "  ✅ c_inference_lib.o (我们的API层)"
     
-    print_info "合并 $((EXISTING_LIBS + 1)) 个库文件到自包含静态库..."
+    # 添加嵌入式模型数据
+    cp ../embedded_model.o .
+    print_info "  ✅ embedded_model.o (嵌入式MNIST模型)"
+    
+    print_info "合并 $((EXISTING_LIBS + 2)) 个库文件到自包含静态库..."
     
     # 创建最终的自包含静态库
     $AR rcs ../libc_inference.a *.o
